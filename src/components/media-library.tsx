@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CanvaPanel } from "@/components/canva-panel";
 
 export type MediaItem = { id: number; url: string; filename: string; mime: string; width: number | null; height: number | null; bytes: number; folder: string; tags: string[]; alt: string | null };
 type Folder = { folder: string; n: number };
@@ -12,6 +13,7 @@ export function MediaLibrary({ onSelect, compact = false }: { onSelect?: (m: Med
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [canva, setCanva] = useState(false);
 
   const load = useCallback(async () => {
     const p = new URLSearchParams(); if (q) p.set("q", q); if (folder) p.set("folder", folder);
@@ -48,6 +50,7 @@ export function MediaLibrary({ onSelect, compact = false }: { onSelect?: (m: Med
           <span className="text-xs text-black/50">{items.length} files{folder ? ` in ${folder}` : ""}</span>
           <div className="flex-1" />
           <input ref={fileInput} type="file" multiple accept="image/*,.gif" className="hidden" onChange={e => e.target.files && upload(e.target.files)} />
+          {!compact && <button onClick={() => setCanva(c => !c)} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>}
           <button onClick={() => fileInput.current?.click()} disabled={busy} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">{busy ? "Uploading…" : "Upload"}</button>
         </div>
         <div className={`flex-1 overflow-y-auto p-4 ${drag ? "bg-brand/5 outline-2 outline-dashed outline-brand" : ""}`}>
@@ -67,6 +70,7 @@ export function MediaLibrary({ onSelect, compact = false }: { onSelect?: (m: Med
           </ul>
         </div>
       </section>
+      {canva && <CanvaPanel onImported={load} onClose={() => setCanva(false)} />}
     </div>
   );
 }
