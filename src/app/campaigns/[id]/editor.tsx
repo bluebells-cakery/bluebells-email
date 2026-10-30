@@ -11,8 +11,10 @@ type S = { id: number; name: string; supported: boolean };
 export function CampaignEditor({ campaign, templates, segments, stats }: { campaign: C; templates: T[]; segments: S[]; stats: { sent: number; queued: number; skipped: number; failed: number } }) {
   const r = useRouter();
   const [c, setC] = useState(campaign); const [count, setCount] = useState<number | null>(null); const [msg, setMsg] = useState(""); const [when, setWhen] = useState("");
+  const [saved, setSaved] = useState<"" | "saving" | "saved">("");
   const locked = !["draft", "scheduled"].includes(c.status);
-  const patch = async (b: Record<string, unknown>) => { const res = await fetch(`/api/campaigns/${c.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(b) }); if (!res.ok) setMsg((await res.json()).error); return res.ok; };
+  const patch = async (b: Record<string, unknown>) => { setSaved("saving"); const res = await fetch(`/api/campaigns/${c.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(b) }); if (!res.ok) setMsg((await res.json()).error); setSaved("saved"); setTimeout(() => setSaved(""), 1500); return res.ok; };
+  const saveAll = async () => { const f = document.querySelectorAll<HTMLInputElement>("input[data-k]"); const b: Record<string, string> = {}; f.forEach(i => { b[i.dataset.k!] = i.value; }); setC({ ...c, ...b }); await patch(b); };
   useEffect(() => { fetch("/api/audience", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(c.audience) }).then(r => r.json()).then(j => setCount(j.count)); }, [c.audience]);
   const setAud = (a: Partial<Audience>) => { const audience = { ...c.audience, ...a }; setC({ ...c, audience }); patch({ audience }); };
   const toggle = (list: "segment_ids" | "exclude_segment_ids", id: number) => setAud({ [list]: c.audience[list].includes(id) ? c.audience[list].filter(x => x !== id) : [...c.audience[list], id] });
@@ -22,12 +24,14 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
   };
   const Field = ({ l, k, ph }: { l: string; k: "name" | "subject" | "preview_text" | "from_name"; ph?: string }) => (
     <label className="block"><span className="text-xs uppercase tracking-wide text-black/50">{l}</span>
-      <input disabled={locked} defaultValue={c[k] ?? ""} placeholder={ph} onBlur={e => { setC({ ...c, [k]: e.target.value }); patch({ [k]: e.target.value }); }} className="mt-1 w-full rounded border border-black/10 bg-white px-3 py-2 text-sm disabled:bg-black/5" /></label>);
+      <input disabled={locked} data-k={k} defaultValue={c[k] ?? ""} placeholder={ph} onBlur={e => { if (e.target.value !== (c[k] ?? "")) { setC({ ...c, [k]: e.target.value }); patch({ [k]: e.target.value }); } }} className="mt-1 w-full rounded border border-black/10 bg-white px-3 py-2 text-sm disabled:bg-black/5" /></label>);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <Link href="/campaigns" className="text-sm text-black/50 hover:text-black">← Campaigns</Link>
-      <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{c.name}</h1><span className="rounded bg-black/5 px-2 py-0.5 text-xs">{c.status}</span></div>
+      <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{c.name}</h1><span className="rounded bg-black/5 px-2 py-0.5 text-xs">{c.status}</span><div className="flex-1" />
+        <span className="text-xs text-black/50">{saved === "saving" ? "Saving…" : saved === "saved" ? "Saved" : "Changes save automatically"}</span>
+        {!locked && <button onClick={saveAll} className="rounded-md border border-black/15 px-3 py-1.5 text-sm hover:border-black/40">Save</button>}</div>
       {locked && <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">Sent {stats.sent.toLocaleString()} · queued {stats.queued.toLocaleString()} · skipped {stats.skipped.toLocaleString()} · failed {stats.failed}{c.sent_at && ` · completed ${new Date(c.sent_at).toLocaleString("en-NZ")}`}</div>}
       <div className="mt-6 grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="space-y-5">
@@ -38,13 +42,13 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
           <section className="rounded-lg border border-black/10 bg-white p-5">
             <h2 className="font-medium">2. Email</h2>
             <div className="mt-3 flex items-center gap-3">
-              <select disabled={locked} value={c.template_id ?? ""} onChange={async e => { const id = Number(e.target.value) || null; await patch({ template_id: id }); const t = templates.find(x => x.id === id); setC({ ...c, template_id: id, html: id ? "x" : null, subject: c.subject || t?.subject || null }); r.refresh(); }} className="rounded border border-black/10 px-3 py-2 text-sm">
+              <select disabled={locked} value={c.template_id ?? ""} onChange={async e => { const id = Number(e.target.value) || null; await patch({ template_id: id }); const t = templates.find(x => x.id === id); setC({ ...c, template_id: id, html: id ? "x" : null, subject: c.subject || t?.subject || null }); r.refresh(); }} className="min-w-0 flex-1 rounded border border-black/10 px-3 py-2 text-sm">
                 <option value="">Choose a template…</option>
                 <optgroup label="My templates">{templates.filter(t => t.kind === "unlayer").map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
                 <optgroup label="Past Klaviyo campaigns">{templates.filter(t => t.kind !== "unlayer").map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
               </select>
-              {c.template_id && <Link href={`/templates/${c.template_id}`} className="text-sm text-brand hover:underline">Open in editor</Link>}
-              {c.template_id && <a href={`/api/campaigns/${c.id}/preview`} target="_blank" className="text-sm text-brand hover:underline">Preview</a>}
+              {c.template_id && <Link href={`/templates/${c.template_id}`} className="whitespace-nowrap text-sm text-brand hover:underline">Open in editor</Link>}
+              {c.template_id && <a href={`/api/campaigns/${c.id}/preview`} target="_blank" className="whitespace-nowrap text-sm text-brand hover:underline">Preview</a>}
             </div>
             <p className="mt-2 text-xs text-black/50">The template's HTML is copied into the campaign when you pick it — re-select it after editing to pull in changes.</p>
           </section>
