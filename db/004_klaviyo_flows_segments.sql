@@ -1,0 +1,12 @@
+alter table flows add column if not exists source text;
+alter table flows add column if not exists source_ref text unique;
+alter table flows add column if not exists klaviyo_status text;
+alter table flows add column if not exists description text;
+alter table segments add column if not exists source text;
+alter table segments add column if not exists source_ref text unique;
+alter table segments add column if not exists is_active boolean not null default true;
+alter table segments add column if not exists klaviyo_count int;
+alter table templates add column if not exists preview_text text;
+alter table templates add column if not exists from_name text;
+alter table templates add column if not exists from_email text;
+alter table templates add column if not exists reply_to text;

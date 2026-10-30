@@ -6,6 +6,7 @@ type Customer = {
   numberOfOrders: string; amountSpent: { amount: string }; createdAt: string; updatedAt: string; tags: string[];
   emailMarketingConsent: { marketingState: string; marketingOptInLevel: string | null; consentUpdatedAt: string | null } | null;
   lastOrder: { createdAt: string } | null;
+  defaultAddress: { city: string | null; country: string | null } | null;
 };
 type Order = { id: string; email: string | null; createdAt: string; cancelledAt: string | null; currentTotalPriceSet: { shopMoney: { amount: string } }; customer: { id: string } | null };
 
@@ -21,7 +22,7 @@ export async function syncShopifyCustomers(opts: { since?: string; log?: (s: str
           pageInfo { hasNextPage endCursor }
           nodes { id email firstName lastName phone numberOfOrders amountSpent { amount } createdAt updatedAt tags
             emailMarketingConsent { marketingState marketingOptInLevel consentUpdatedAt }
-            lastOrder { createdAt } }
+            lastOrder { createdAt } defaultAddress { city country } }
         } }`, { cursor, query });
     const rows = data.customers.nodes.filter(c => c.email).map(c => {
       const state = c.emailMarketingConsent?.marketingState ?? "NOT_SUBSCRIBED";
@@ -32,16 +33,16 @@ export async function syncShopifyCustomers(opts: { since?: string; log?: (s: str
         consent_at: status === "subscribed" ? c.emailMarketingConsent?.consentUpdatedAt ?? null : null,
         unsubscribed_at: status === "unsubscribed" ? c.emailMarketingConsent?.consentUpdatedAt ?? null : null,
         last_order_at: c.lastOrder?.createdAt ?? null, order_count: Number(c.numberOfOrders), total_spent: Number(c.amountSpent.amount),
-        tags: c.tags, created_at: c.createdAt,
+        tags: c.tags, created_at: c.createdAt, city: c.defaultAddress?.city ?? null, country: c.defaultAddress?.country ?? null,
       };
     });
     // de-dupe within page (Shopify can have two customers with same email in different case)
     const seen = new Set<string>(); const uniq = rows.filter(r => !seen.has(r.email) && seen.add(r.email));
     if (uniq.length) await sql`
       insert into contacts (email, first_name, last_name, phone, shopify_customer_id, status, consent_source, consent_at, unsubscribed_at,
-                            last_order_at, order_count, total_spent, tags, created_at)
+                            last_order_at, order_count, total_spent, tags, created_at, city, country)
       select email, first_name, last_name, phone, shopify_customer_id, status, consent_source, consent_at::timestamptz, unsubscribed_at::timestamptz,
-             last_order_at::timestamptz, order_count, total_spent, tags, created_at::timestamptz
+             last_order_at::timestamptz, order_count, total_spent, tags, created_at::timestamptz, city, country
       from json_populate_recordset(null::contacts, ${JSON.stringify(uniq)}::json)
       on conflict (email) do update set
         first_name = coalesce(excluded.first_name, contacts.first_name),
@@ -56,6 +57,7 @@ export async function syncShopifyCustomers(opts: { since?: string; log?: (s: str
         order_count = greatest(excluded.order_count, contacts.order_count),
         total_spent = greatest(excluded.total_spent, contacts.total_spent),
         tags = (select coalesce(array_agg(distinct t), '{}') from unnest(contacts.tags || excluded.tags) t),
+        city = coalesce(excluded.city, contacts.city), country = coalesce(excluded.country, contacts.country),
         updated_at = now()`;
     n += uniq.length;
     cursor = data.customers.pageInfo.hasNextPage ? data.customers.pageInfo.endCursor : null;
