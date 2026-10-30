@@ -18,12 +18,11 @@ export default async function FlowsPage() {
           {flows.map(f => {
             const steps = (f.definition?.steps ?? []) as { type: string; email?: { status: string }; variants?: unknown[] }[];
             const emails = steps.filter(s => s.email).length + steps.reduce((n, s) => n + (s.variants?.length ?? 0), 0);
-            const live = steps.filter(s => s.email?.status === "live").length;
             return (
               <tr key={f.id} className="border-t border-black/5 hover:bg-black/[.02]">
                 <td className="px-4 py-3"><Link href={`/flows/${f.id}`} className="font-medium hover:text-brand">{f.name}</Link></td>
                 <td className="px-4 py-3 text-black/70">{String(f.trigger).replace("metric:", "")}</td>
-                <td className="px-4 py-3 text-black/70">{emails} <span className="text-black/40">({live} live)</span></td>
+                <td className="px-4 py-3 text-black/70">{emails}</td>
                                 <td className="px-4 py-3"><FlowStatus id={Number(f.id)} status={String(f.status)} /></td>
               </tr>
             );
