@@ -5,3 +5,4 @@ alter table campaigns add column if not exists klaviyo_stats jsonb;
 alter table campaigns add column if not exists queued_at timestamptz;
 alter table campaigns add column if not exists utm text;
 alter table segments add column if not exists description text;
+alter table segments add column if not exists sort_order int not null default 100;

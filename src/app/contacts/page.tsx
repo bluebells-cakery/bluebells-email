@@ -4,7 +4,7 @@ import { translate } from "@/lib/rules";
 
 export default async function ContactsPage() {
   const [counts] = await sql`select count(*) filter (where status='subscribed')::int subscribed, count(*) filter (where status='unsubscribed')::int unsubscribed, count(*) filter (where status='suppressed')::int suppressed, count(*) filter (where status='never_subscribed')::int never, count(*)::int total from contacts`;
-  const segs = await sql`select id, name, description, definition, is_active, klaviyo_count, source from segments order by name`;
+  const segs = await sql`select id, name, description, definition, is_active, klaviyo_count, source from segments order by sort_order, name`;
   const rows: { id: number; name: string; description: string | null; klaviyo_count: number | null; words: string; ours: number | null; supported: boolean; unsupported: string[] }[] = [];
   for (const s of segs) {
     const t = translate(s.definition);

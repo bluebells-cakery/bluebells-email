@@ -36,7 +36,19 @@ export function condition(c: Cond): { words: string; sql: string | null; support
     }
     case "profile-property": {
       const prop = String(c.property); const f = c.filter ?? {};
-      if (/city/.test(prop)) return { words: `city ${f.operator} "${f.value}"`, sql: f.operator === "contains" ? `c.city ilike '%${String(f.value).replace(/'/g, "''")}%'` : f.operator === "equals" ? `c.city = '${String(f.value).replace(/'/g, "''")}'` : null, supported: ["contains", "equals"].includes(f.operator) };
+      if (/city/.test(prop)) {
+        const esc = (v: string) => v.replace(/'/g, "''");
+        if (f.operator === "in" && Array.isArray(f.value)) {
+          const vals: string[] = f.value.map((v: string) => v.trim().toLowerCase()).filter(Boolean);
+          const auckland = vals.some(v => /auckland|akl/.test(v));
+          const sqlParts = [...new Set(vals)].map(v => `lower(trim(c.city)) = '${esc(v)}'`);
+          if (auckland) sqlParts.push("c.city ilike '%auckland%'", "lower(trim(c.city)) = 'akl'");
+          return { words: auckland ? "lives in Auckland" : `city is one of ${vals.slice(0, 5).join(", ")}${vals.length > 5 ? "…" : ""}`, sql: `(${sqlParts.join(" OR ")})`, supported: true };
+        }
+        if (f.operator === "contains") return { words: /auckland/i.test(String(f.value)) ? "lives in Auckland" : `city contains "${f.value}"`, sql: `c.city ilike '%${esc(String(f.value))}%'`, supported: true };
+        if (f.operator === "equals") return { words: `city is "${f.value}"`, sql: `c.city = '${esc(String(f.value))}'`, supported: true };
+        return { words: `city ${f.operator} "${f.value}"`, sql: null, supported: false };
+      }
       return { words: `${prop} ${f.operator} "${f.value}"`, sql: null, supported: false };
     }
     case "profile-predictive-analytics": {
