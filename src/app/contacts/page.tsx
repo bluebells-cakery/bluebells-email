@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { sql } from "@/lib/db";
 import { translate } from "@/lib/rules";
+import { ProfileSearch } from "./search";
 
 export default async function ContactsPage() {
   const [counts] = await sql`select count(*) filter (where status='subscribed')::int subscribed,
@@ -30,6 +31,7 @@ export default async function ContactsPage() {
         <Stat l="Subscribers who've ordered" v={counts.buyers} s={`${Math.round(100 * counts.buyers / Math.max(1, counts.subscribed))}% of subscribers`} />
       </div>
       <p className="mt-2 text-xs text-black/50">{counts.total.toLocaleString()} profiles in total · {counts.unsubscribed.toLocaleString()} unsubscribed · {counts.suppressed.toLocaleString()} suppressed (bounces, complaints, Klaviyo suppressions)</p>
+      <ProfileSearch />
       <h2 className="mt-10 text-lg font-semibold">Segments <span className="text-sm font-normal text-black/50">— Klaviyo definitions, evaluated on our data</span></h2>
       <table className="mt-4 w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-black/10 bg-white text-sm">
         <thead className="bg-black/[.03] text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="px-4 py-2">Segment</th><th className="px-4 py-2">Exact rules</th><th className="px-4 py-2 text-right">Klaviyo</th><th className="px-4 py-2 text-right">Ours</th></tr></thead>
