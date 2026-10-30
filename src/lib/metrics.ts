@@ -4,11 +4,13 @@ export type Period = 7 | 30 | 90 | 365;
 
 /** Attribution: an order counts for the last email the contact clicked within 5 days before the order (Klaviyo's click window). */
 export async function attributeOrders() {
-  await sql`update orders o set attributed_send_id = s.id from lateral (
-      select q.id from events e join send_queue q on q.id = e.send_id
-      where e.contact_id = o.contact_id and e.type = 'click' and e.occurred_at <= o.placed_at and e.occurred_at >= o.placed_at - interval '5 days'
-      order by e.occurred_at desc limit 1) s
-    where o.attributed_send_id is null and o.contact_id is not null and o.placed_at > now() - interval '30 days'`;
+  await sql`update orders o set attributed_send_id = s.send_id from (
+      select distinct on (o2.id) o2.id as order_id, e.send_id
+      from orders o2 join events e on e.contact_id = o2.contact_id and e.type = 'click' and e.send_id is not null
+        and e.occurred_at <= o2.placed_at and e.occurred_at >= o2.placed_at - interval '5 days'
+      where o2.attributed_send_id is null and o2.contact_id is not null and o2.placed_at > now() - interval '30 days'
+      order by o2.id, e.occurred_at desc) s
+    where o.id = s.order_id`;
 }
 
 export async function overview(days: Period) {

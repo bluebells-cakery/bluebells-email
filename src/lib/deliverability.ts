@@ -11,30 +11,27 @@ export const providerOf = (email: string) => {
   return "Other";
 };
 
+const PROVIDER_SQL = `case when c.email ilike '%@gmail.%' or c.email ilike '%@googlemail.%' then 'Gmail'
+  when c.email ilike '%@xtra.co.nz' then 'Xtra'
+  when c.email ilike '%@outlook.%' or c.email ilike '%@hotmail.%' or c.email ilike '%@live.%' or c.email ilike '%@msn.%' then 'Outlook / Hotmail'
+  when c.email ilike '%@yahoo.%' or c.email ilike '%@ymail.%' then 'Yahoo'
+  when c.email ilike '%@icloud.%' or c.email ilike '%@me.com' or c.email ilike '%@mac.com' then 'Apple iCloud' else 'Other' end`;
+
 export async function byProvider(days: number) {
-  const rows = await sql`select
-      case when c.email ilike '%@gmail.%' or c.email ilike '%@googlemail.%' then 'Gmail'
-           when c.email ilike '%@xtra.co.nz' then 'Xtra'
-           when c.email ilike '%@outlook.%' or c.email ilike '%@hotmail.%' or c.email ilike '%@live.%' or c.email ilike '%@msn.%' then 'Outlook / Hotmail'
-           when c.email ilike '%@yahoo.%' or c.email ilike '%@ymail.%' then 'Yahoo'
-           when c.email ilike '%@icloud.%' or c.email ilike '%@me.com' or c.email ilike '%@mac.com' then 'Apple iCloud' else 'Other' end as provider,
+  const sent = await sql.query(`select ${PROVIDER_SQL} as provider,
       count(*) filter (where q.status='sent')::int sent,
       count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='delivery'))::int delivered,
       count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='bounce'))::int bounced,
       count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='complaint'))::int complaints,
       count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='open' and e.source='app'))::int opened,
-      count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='click' and e.source='app'))::int clicked,
-      (select count(*)::int from contacts c2 where c2.status='subscribed' and
-        (case when c2.email ilike '%@gmail.%' or c2.email ilike '%@googlemail.%' then 'Gmail' when c2.email ilike '%@xtra.co.nz' then 'Xtra' when c2.email ilike '%@outlook.%' or c2.email ilike '%@hotmail.%' or c2.email ilike '%@live.%' or c2.email ilike '%@msn.%' then 'Outlook / Hotmail' when c2.email ilike '%@yahoo.%' or c2.email ilike '%@ymail.%' then 'Yahoo' when c2.email ilike '%@icloud.%' or c2.email ilike '%@me.com' or c2.email ilike '%@mac.com' then 'Apple iCloud' else 'Other' end) =
-        (case when c.email ilike '%@gmail.%' or c.email ilike '%@googlemail.%' then 'Gmail' when c.email ilike '%@xtra.co.nz' then 'Xtra' when c.email ilike '%@outlook.%' or c.email ilike '%@hotmail.%' or c.email ilike '%@live.%' or c.email ilike '%@msn.%' then 'Outlook / Hotmail' when c.email ilike '%@yahoo.%' or c.email ilike '%@ymail.%' then 'Yahoo' when c.email ilike '%@icloud.%' or c.email ilike '%@me.com' or c.email ilike '%@mac.com' then 'Apple iCloud' else 'Other' end)) as subscribers
-    from send_queue q join contacts c on c.id = q.contact_id where q.sent_at > now() - (${days} || ' days')::interval
-    group by 1 order by subscribers desc`;
-  return rows;
+      count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='click' and e.source='app'))::int clicked
+    from send_queue q join contacts c on c.id = q.contact_id where q.sent_at > now() - ($1 || ' days')::interval group by 1`, [String(days)]);
+  const subs = await subscribersByProvider();
+  return subs.map(s => ({ provider: s.provider as string, subscribers: Number(s.n), ...(sent.find(x => x.provider === s.provider) ?? { sent: 0, delivered: 0, bounced: 0, complaints: 0, opened: 0, clicked: 0 }) }));
 }
 
 export async function subscribersByProvider() {
-  return sql`select case when email ilike '%@gmail.%' or email ilike '%@googlemail.%' then 'Gmail' when email ilike '%@xtra.co.nz' then 'Xtra' when email ilike '%@outlook.%' or email ilike '%@hotmail.%' or email ilike '%@live.%' or email ilike '%@msn.%' then 'Outlook / Hotmail' when email ilike '%@yahoo.%' or email ilike '%@ymail.%' then 'Yahoo' when email ilike '%@icloud.%' or email ilike '%@me.com' or email ilike '%@mac.com' then 'Apple iCloud' else 'Other' end as provider, count(*)::int n
-    from contacts where status='subscribed' group by 1 order by 2 desc`;
+  return sql.query(`select ${PROVIDER_SQL} as provider, count(*)::int n from contacts c where c.status='subscribed' group by 1 order by 2 desc`);
 }
 
 export async function sesHealth() {

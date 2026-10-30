@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { byProvider, subscribersByProvider, sesHealth, recentIssues } from "@/lib/deliverability";
+import { byProvider, sesHealth, recentIssues } from "@/lib/deliverability";
 
 const pct = (a: number, b: number) => (b ? ((100 * a) / b).toFixed(1) + "%" : "—");
 export default async function Deliverability({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const { d } = await searchParams; const days = [7, 30, 90].includes(Number(d)) ? Number(d) : 30;
-  const [prov, subs, ses, issues] = await Promise.all([byProvider(days), subscribersByProvider(), sesHealth().catch(() => null), recentIssues()]);
+  const [prov, ses, issues] = await Promise.all([byProvider(days), sesHealth().catch(() => null), recentIssues()]);
   const totalSent = prov.reduce((n, p) => n + p.sent, 0), totalB = prov.reduce((n, p) => n + p.bounced, 0), totalC = prov.reduce((n, p) => n + p.complaints, 0);
   const lastBounce = ses?.bounceRate.at(-1)?.v ?? null, lastComplaint = ses?.complaintRate.at(-1)?.v ?? null;
   const Tile = ({ l, v, s, warn }: { l: string; v: string; s?: string; warn?: boolean }) => <div className={`rounded-lg border p-4 ${warn ? "border-red-300 bg-red-50" : "border-black/10 bg-white"}`}><div className="text-xs uppercase tracking-wide text-black/50">{l}</div><div className="mt-1 text-2xl font-semibold tabular-nums">{v}</div>{s && <div className="text-xs text-black/50">{s}</div>}</div>;
@@ -23,7 +23,7 @@ export default async function Deliverability({ searchParams }: { searchParams: P
       <h2 className="mt-10 text-lg font-semibold">By mailbox provider <span className="text-sm font-normal text-black/50">— a drop in opens/clicks at one provider while others hold = that provider is spam-foldering us</span></h2>
       <table className="mt-3 w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-black/10 bg-white text-sm">
         <thead className="bg-black/[.03] text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="px-4 py-2">Provider</th><th className="px-4 py-2 text-right">Subscribers</th><th className="px-4 py-2 text-right">Sent</th><th className="px-4 py-2 text-right">Delivered</th><th className="px-4 py-2 text-right">Open</th><th className="px-4 py-2 text-right">Click</th><th className="px-4 py-2 text-right">Bounce</th><th className="px-4 py-2 text-right">Complaint</th></tr></thead>
-        <tbody>{(prov.length ? prov : subs.map(s => ({ provider: s.provider, subscribers: s.n, sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, complaints: 0 }))).map(p => (
+        <tbody>{prov.map(p => (
           <tr key={p.provider} className="border-t border-black/5"><td className="px-4 py-2 font-medium">{p.provider}</td><td className="px-4 py-2 text-right tabular-nums">{Number(p.subscribers).toLocaleString()}</td><td className="px-4 py-2 text-right tabular-nums">{p.sent.toLocaleString()}</td><td className="px-4 py-2 text-right tabular-nums">{pct(p.delivered, p.sent)}</td><td className="px-4 py-2 text-right tabular-nums">{pct(p.opened, p.sent)}</td><td className="px-4 py-2 text-right tabular-nums">{pct(p.clicked, p.sent)}</td><td className={`px-4 py-2 text-right tabular-nums ${p.sent > 50 && p.bounced / p.sent > 0.05 ? "text-red-600" : ""}`}>{pct(p.bounced, p.sent)}</td><td className={`px-4 py-2 text-right tabular-nums ${p.sent > 50 && p.complaints / p.sent > 0.001 ? "text-red-600" : ""}`}>{pct(p.complaints, p.sent)}</td></tr>))}</tbody>
       </table>
 
