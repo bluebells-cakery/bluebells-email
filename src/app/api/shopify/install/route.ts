@@ -10,7 +10,7 @@ export async function GET() {
   const url = new URL(`https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/oauth/authorize`);
   url.searchParams.set("client_id", process.env.SHOPIFY_CLIENT_ID!);
   url.searchParams.set("scope", SCOPES);
-  url.searchParams.set("redirect_uri", `${process.env.APP_URL}/api/shopify/callback`);
+  url.searchParams.set("redirect_uri", `${process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz"}/api/shopify/callback`);
   url.searchParams.set("state", state);
   return NextResponse.redirect(url);
 }
