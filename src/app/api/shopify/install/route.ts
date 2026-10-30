@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { setSetting } from "@/lib/settings";
 
-const SCOPES = "read_customers,read_orders,read_files,write_files,read_marketing_events,read_checkouts";
+const SCOPES = "read_customers,read_orders,read_files,write_files,read_marketing_events,read_checkouts,read_discounts,write_discounts,read_products";
 
 export async function GET() {
   const state = randomBytes(16).toString("hex");
