@@ -20,25 +20,36 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
   const heroes = await sql`select t.id, (select url from media m where t.html like '%' || split_part(m.url, '?', 1) || '%' and m.folder not like '%social%' order by m.width desc nulls last limit 1) as hero from templates t where t.source = 'klaviyo'`;
   const heroOf = new Map(heroes.map(h => [Number(h.id), h.hero as string | null]));
 
-  // Walk the graph depth-first producing a nested list (branches rendered side by side)
+  // Linear timeline: follow the main path; a split continues down its YES branch and the NO branch is listed afterwards as its own section.
   const seen = new Set<string>();
-  function Chain({ start, depth = 0 }: { start: string | null; depth?: number }) {
-    const items = []; let cur = start;
+  function walk(start: string | null): { main: Step[]; branches: { label: string; steps: Step[] }[] } {
+    const main: Step[] = []; const branches: { label: string; steps: Step[] }[] = []; let cur = start;
     while (cur && !seen.has(cur)) {
-      const s = byId.get(cur); if (!s) break; seen.add(cur);
-      items.push(<StepCard key={s.id} s={s} />);
-      if (s.type === "conditional-split" || s.type === "trigger-split") {
-        const t = translate((s.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter);
-        items.push(
-          <div key={s.id + "-split"} className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-dashed border-green-300 p-3"><div className="mb-2 text-xs font-medium text-green-700">YES → {t.words}</div><Chain start={s.links.next_if_true} depth={depth + 1} /></div>
-            <div className="rounded-lg border border-dashed border-black/20 p-3"><div className="mb-2 text-xs font-medium text-black/50">NO</div><Chain start={s.links.next_if_false} depth={depth + 1} /></div>
-          </div>);
+      const st = byId.get(cur); if (!st) break; seen.add(cur); main.push(st);
+      if (st.type === "conditional-split" || st.type === "trigger-split") {
+        const t = translate((st.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter);
+        const yes = walk(st.links.next_if_true); const no = walk(st.links.next_if_false);
+        main.push(...yes.main); branches.push(...yes.branches);
+        if (no.main.length) branches.push({ label: `Otherwise (not: ${t.words.replace(/\n/g, " ")})`, steps: no.main }); branches.push(...no.branches);
         break;
       }
-      cur = s.links.next ?? null;
+      cur = st.links.next ?? null;
     }
-    return <div className="space-y-3">{items.length ? items : <div className="text-xs text-black/40">End</div>}</div>;
+    return { main, branches };
+  }
+  const tree = walk(def.entry);
+  let emailNo = 0;
+  function Timeline({ steps }: { steps: Step[] }) {
+    return (
+      <ol className="relative ml-3 border-l border-black/10 pl-6">
+        {steps.map(st => {
+          if (st.type === "time-delay") return <li key={st.id} className="relative py-2 text-sm text-black/50"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rounded-full border-2 border-black/20 bg-white" />{delayWords(st.delay)}</li>;
+          if (st.type === "conditional-split" || st.type === "trigger-split") { const t = translate((st.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter); return <li key={st.id} className="relative py-2 text-sm"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rotate-45 bg-amber-400" /><span className="text-amber-800">If {t.words.replace(/\n/g, " ")} →</span></li>; }
+          if ((st.type === "send-email" || st.type === "ab-test") && st.email) { emailNo++; return <li key={st.id} className="relative py-2"><span className="absolute -left-[36px] top-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-white">{emailNo}</span><StepCard s={st} /></li>; }
+          return null;
+        })}
+      </ol>
+    );
   }
 
   function EmailCard({ e, label, stepId, variant }: { e: Email; label?: string; stepId: string; variant?: number }) {
@@ -47,12 +58,12 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
       <div className="flex gap-3">
         <div className="h-24 w-20 shrink-0 overflow-hidden rounded border border-black/10 bg-black/5">{e.templateId && heroOf.get(e.templateId) && <img src={heroOf.get(e.templateId)!} alt="" className="h-full w-full object-cover object-top" />}</div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2"><span className="truncate font-medium">{label ? `${label}: ` : ""}{e.name}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${e.status === "live" ? "bg-green-100 text-green-800" : "bg-black/5 text-black/50"}`}>Klaviyo: {e.status}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${on ? "bg-brand/10 text-brand" : "bg-black/5 text-black/50"}`}>{on ? "will send" : "skipped"}</span></div>
+          <div className="flex items-center gap-2"><span className="truncate font-medium">{label ? `${label}: ` : ""}{e.name}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${on ? "bg-brand/10 text-brand" : "bg-black/5 text-black/50"}`}>{on ? "will send" : "skipped"}</span></div>
           <div className="truncate text-sm text-black/70">{e.subject}</div>
           {e.previewText && <div className="truncate text-xs text-black/40">{e.previewText}</div>}
           <div className="mt-1 flex gap-3 text-xs">
-            {e.templateId && <Link href={`/templates/${e.templateId}`} className="text-brand hover:underline">Klaviyo version</Link>}
-            {e.ourTemplateId ? <Link href={`/templates/${e.ourTemplateId}`} className="text-brand hover:underline">Our version</Link> : <span className="text-black/40">Our version: using Klaviyo HTML</span>}
+            {e.templateId && <Link href={`/templates/${e.templateId}`} className="text-brand hover:underline">Preview</Link>}
+            {e.ourTemplateId && <Link href={`/templates/${e.ourTemplateId}`} className="text-brand hover:underline">Edit</Link>}
             {(e.ourTemplateId ?? e.templateId) && <SendTest templateId={Number(e.ourTemplateId ?? e.templateId)} subject={e.subject} />}
             <EmailToggle flowId={Number(f.id)} stepId={stepId} variant={variant} enabled={on} />
           </div>
@@ -77,13 +88,14 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <Link href="/flows" className="text-sm text-black/50 hover:text-black">← Flows</Link>
-      <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{String(f.name)}</h1><span className={`rounded px-2 py-0.5 text-xs ${f.klaviyo_status === "live" ? "bg-green-100 text-green-800" : "bg-black/5 text-black/60"}`}>Klaviyo: {String(f.klaviyo_status)}</span><FlowStatus id={Number(f.id)} status={String(f.status)} /></div>
+      <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{String(f.name)}</h1><FlowStatus id={Number(f.id)} status={String(f.status)} /></div>
       <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">
         <div className="font-medium">{trigWords}</div>
         {!!trigFilter && <div className="mt-1 text-xs text-black/60">Only if: {JSON.stringify(trigFilter).includes("form_id") ? "a specific signup form was submitted" : translate(trigFilter).words}</div>}
         {!!def.profileFilter && <div className="mt-1 text-xs text-black/60">Profile filter: {pf.words.replace(/\n/g, " ")}</div>}
       </div>
-      <div className="mt-6"><Chain start={def.entry} /></div>
+      <div className="mt-6"><Timeline steps={tree.main} /></div>
+      {tree.branches.map((b, i) => (<div key={i} className="mt-8"><div className="mb-2 text-sm font-medium text-black/60">{b.label}</div><Timeline steps={b.steps} /></div>))}
     </div>
   );
 }
