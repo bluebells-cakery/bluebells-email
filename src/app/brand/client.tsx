@@ -22,6 +22,7 @@ export function BrandClient({ brand }: { brand: B }) {
   const [svgs, setSvgs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [tab, setTab] = useState<"type" | "colours" | "elements">("type");
 
   useEffect(() => { brand.elements.forEach(async e => { const t = await (await fetch(e.file)).text(); setSvgs(s => ({ ...s, [e.id]: t })); }); }, [brand]);
 
@@ -39,14 +40,18 @@ export function BrandClient({ brand }: { brand: B }) {
   const P = { fontFamily: `'${brand.fonts.body.family}', ${brand.fonts.body.fallback}` };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 space-y-14">
+    <div className="mx-auto max-w-7xl px-6 py-10 space-y-8">
       <div>
         <h1 className="text-2xl font-semibold">Brand</h1>
-        <p className="mt-1 text-sm text-black/60">Pulled from bluebellscakery.com. Click a swatch to copy its hex. “Save to media” renders an element as a PNG you can drop into any email.</p>
+        <p className="mt-1 text-sm text-black/60">Pulled from bluebellscakery.com.</p>
+        <div className="mt-6 flex gap-1 border-b border-black/10">
+          {([["type", "Typography"], ["colours", "Colours"], ["elements", "Design elements"]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === k ? "border-brand text-brand" : "border-transparent text-black/60 hover:text-black"}`}>{l}</button>
+          ))}
+        </div>
       </div>
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Typography</h2>
+      {tab === "type" && <section>
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-lg border border-black/10 bg-white p-5">
             <div className="text-xs uppercase tracking-wide text-black/50">Headings</div>
@@ -60,20 +65,20 @@ export function BrandClient({ brand }: { brand: B }) {
           </div>
         </div>
         <p className="mt-2 text-xs text-black/50">Email note: Crimson Pro and Poppins only render where Google Fonts are supported (Apple Mail, iOS, some Android). Gmail/Outlook fall back to Georgia/Arial — set those as fallbacks in Unlayer’s font settings.</p>
-      </section>
+      </section>}
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Colours</h2>
+      {tab === "colours" && <section>
+        <p className="mb-4 text-sm text-black/60">Click a swatch to copy its hex.</p>
         {Object.entries(brand.colours).map(([group, list]) => (
           <div key={group} className="mb-6">
             <div className="mb-2 text-sm font-medium text-black/70">{group}</div>
             <div className="grid grid-cols-3 gap-3 md:grid-cols-6">{list.map(([n, hex]) => <Swatch key={hex + n} name={n} hex={hex} />)}</div>
           </div>
         ))}
-      </section>
+      </section>}
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Design elements</h2>
+      {tab === "elements" && <section>
+        <p className="mb-4 text-sm text-black/60">“Save to media” renders an element as a PNG you can drop into any email.</p>
 
         <div className="rounded-lg border border-black/10 bg-white p-5">
           <div className="flex flex-wrap items-center gap-4">
@@ -120,7 +125,7 @@ export function BrandClient({ brand }: { brand: B }) {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
     </div>
   );
 }
