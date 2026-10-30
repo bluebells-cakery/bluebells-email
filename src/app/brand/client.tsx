@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { brand as Brand } from "@/lib/brand";
 import { WavyCircle } from "./wavy-circle";
 import { WavyClip } from "./wavy-clip";
+import { ExtraFonts } from "./extra-fonts";
 
 type B = typeof Brand;
 
@@ -66,6 +67,7 @@ export function BrandClient({ brand }: { brand: B }) {
             <div className="mt-2 font-mono text-xs text-black/50">font-family: &apos;Poppins&apos;, Arial, sans-serif</div>
           </div>
         </div>
+        <ExtraFonts />
         <p className="mt-2 text-xs text-black/50">Email note: Crimson Pro and Poppins only render where Google Fonts are supported (Apple Mail, iOS, some Android). Gmail/Outlook fall back to Georgia/Arial — set those as fallbacks in Unlayer’s font settings.</p>
       </section>}
 

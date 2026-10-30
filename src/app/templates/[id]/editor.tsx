@@ -8,12 +8,14 @@ import { BlocksPanel } from "@/components/blocks-panel";
 import { AssistantPanel } from "@/components/assistant-panel";
 import { insertRows } from "@/lib/blocks";
 
-const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex) }));
+const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: i === 0 ? "brand_colors" : `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex), default: i === 0 }));
 const fontUrl = (g: string) => `https://fonts.googleapis.com/css2?family=${g}&display=swap`;
 
 const EmailEditor = dynamic(() => import("react-email-editor"), { ssr: false });
 
-export function TemplateEditor({ id, name: initialName, design }: { id: string; name: string; design: object }) {
+type ExtraFont = { label: string; family: string; google: string; fallback: string };
+
+export function TemplateEditor({ id, name: initialName, design, extraFonts = [] }: { id: string; name: string; design: object; extraFonts?: ExtraFont[] }) {
   const ref = useRef<EditorRef>(null);
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -60,14 +62,13 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
             projectId: Number(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID) || undefined,
             displayMode: "email",
             appearance: { theme: "modern_light" },
-            features: { textEditor: { spellChecker: true }, colorPicker: { colors: brandColourGroups } },
+            features: { textEditor: { spellChecker: true }, colorPicker: { colors: brandColourGroups, recentColors: false } },
             fonts: {
               showDefaultFonts: false,
               customFonts: [
                 { label: "Crimson Pro (headings)", value: `'Crimson Pro', Georgia, 'Times New Roman', serif`, url: fontUrl(brand.fonts.heading.google) },
                 { label: "Poppins (body)", value: `'Poppins', Arial, Helvetica, sans-serif`, url: fontUrl(brand.fonts.body.google) },
-                { label: "Georgia (fallback serif)", value: "Georgia, 'Times New Roman', serif" },
-                { label: "Arial (fallback sans)", value: "Arial, Helvetica, sans-serif" },
+                ...extraFonts.map(f => ({ label: f.label, value: `'${f.family}', ${f.fallback}`, url: fontUrl(f.google) })),
               ],
             },
             designTags: { brand_navy: "#262967", brand_cream: "#fffdf8", brand_teal: "#00bfb3" },
