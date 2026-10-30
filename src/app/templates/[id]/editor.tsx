@@ -5,7 +5,7 @@ import type { EditorRef, EmailEditorProps } from "react-email-editor";
 import { MediaLibrary, type MediaItem } from "@/components/media-library";
 import { brand } from "@/lib/brand";
 
-const brandColours = Object.values(brand.colours).flat().map(([, hex]) => hex);
+const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex) }));
 const fontUrl = (g: string) => `https://fonts.googleapis.com/css2?family=${g}&display=swap`;
 
 const EmailEditor = dynamic(() => import("react-email-editor"), { ssr: false });
@@ -47,7 +47,7 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
             projectId: Number(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID) || undefined,
             displayMode: "email",
             appearance: { theme: "modern_light" },
-            features: { textEditor: { spellChecker: true }, colorPicker: { presets: brandColours } },
+            features: { textEditor: { spellChecker: true }, colorPicker: { colors: brandColourGroups } },
             fonts: {
               showDefaultFonts: false,
               customFonts: [
