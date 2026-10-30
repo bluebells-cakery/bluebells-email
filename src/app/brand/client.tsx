@@ -59,14 +59,6 @@ export function BrandClient({ brand }: { brand: B }) {
             <div className="mt-2 font-mono text-xs text-black/50">font-family: &apos;Poppins&apos;, Arial, sans-serif</div>
           </div>
         </div>
-        <div className="mt-4 rounded-lg border border-black/10 bg-white">
-          {brand.type.map(t => (
-            <div key={t.name} className="flex items-baseline gap-6 border-b border-black/5 px-5 py-3 last:border-0">
-              <div className="w-44 shrink-0 text-xs text-black/50">{t.name}<div className="font-mono text-[11px]">{t.size}/{t.line} · {t.weight}{t.mobile ? ` · mobile ${t.mobile}` : ""}</div></div>
-              <div className="truncate" style={{ ...(t.font === "heading" ? H : P), fontSize: Math.min(t.size, 44), lineHeight: 1.15, fontWeight: t.weight, color: "#262967" }}>Bluebells Cakery — baked with love</div>
-            </div>
-          ))}
-        </div>
         <p className="mt-2 text-xs text-black/50">Email note: Crimson Pro and Poppins only render where Google Fonts are supported (Apple Mail, iOS, some Android). Gmail/Outlook fall back to Georgia/Arial — set those as fallbacks in Unlayer’s font settings.</p>
       </section>
 
