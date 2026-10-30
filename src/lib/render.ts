@@ -6,7 +6,7 @@ export type RenderCtx = {
   products?: { title: string; url: string; image?: string | null; price?: string }[];
 };
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
-const ORG = { name: "Bluebells Cakery", full_address: "Bluebells Cakery Limited, Auckland, New Zealand", url: "https://bluebellscakery.com" };
+const ORG = { name: "Bluebells Cakery", full_address: "Auckland, New Zealand", url: "https://bluebellscakery.com" };
 
 export function renderTemplate(html: string, ctx: RenderCtx): string {
   let h = html;
@@ -37,7 +37,8 @@ export function renderTemplate(html: string, ctx: RenderCtx): string {
   h = h.replace(/\{\{\s*(person\.)?first_name[^}]*\}\}/g, ctx.first_name ?? "");
   h = h.replace(/\{%\s*coupon_code\s*['"]([^'"]+)['"]\s*%\}/g, "$1");
   h = h.replace(/\{%\s*current_year\s*%\}/g, String(new Date().getFullYear()));
-  h = h.replace(/\{%\s*unsubscribe(_link)?\s*%\}/g, ctx.unsubscribe_url);
+  h = h.replace(/\{%\s*unsubscribe_link\s*%\}/g, ctx.unsubscribe_url);
+  h = h.replace(/\{%\s*unsubscribe\s*%\}/g, `<a href="${ctx.unsubscribe_url}" style="color:inherit;text-decoration:underline">Unsubscribe</a>`);
   h = h.replace(/\{%\s*web_view\s*%\}/g, `${APP()}/v/${ctx.token}`);
   h = h.replace(/\{\{\s*unsubscribe_url\s*\}\}/g, ctx.unsubscribe_url);
   h = h.replace(/\{\{\s*email\s*\}\}/g, ctx.email);
