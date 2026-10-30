@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import type { brand as Brand } from "@/lib/brand";
 import { WavyCircle } from "./wavy-circle";
+import { WavyClip } from "./wavy-clip";
 
 type B = typeof Brand;
 
@@ -95,6 +96,7 @@ export function BrandClient({ brand }: { brand: B }) {
         </div>
 
         <WavyCircle />
+        <WavyClip />
 
         <div className="mt-6 rounded-lg border border-black/10 bg-white p-5">
           <div className="flex flex-wrap items-center gap-4">
