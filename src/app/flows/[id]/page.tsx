@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { sql } from "@/lib/db";
 import { translate } from "@/lib/rules";
 import { METRICS } from "@/lib/sync/klaviyo-flows";
+import { FlowStatus, EmailToggle, SendTest } from "../flow-controls";
 
-type Email = { name: string; subject: string; previewText: string | null; templateId: number | null; status: string; ourTemplateId?: number | null };
+type Email = { name: string; subject: string; previewText: string | null; templateId: number | null; status: string; ourTemplateId?: number | null; enabled?: boolean };
 type Step = { id: string; type: string; links: Record<string, string | null>; email?: Email; variants?: Email[]; delay?: { unit: string; value: number; delay_until_time?: string }; condition?: { profile_filter?: unknown }; abStatus?: string };
 
 function delayWords(d: Step["delay"]) { if (!d) return ""; return `Wait ${d.value} ${d.unit}${d.value === 1 ? "" : ""}${d.delay_until_time ? ` (until ${d.delay_until_time.slice(0, 5)})` : ""}`; }
@@ -40,17 +41,20 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
     return <div className="space-y-3">{items.length ? items : <div className="text-xs text-black/40">End</div>}</div>;
   }
 
-  function EmailCard({ e, label }: { e: Email; label?: string }) {
+  function EmailCard({ e, label, stepId, variant }: { e: Email; label?: string; stepId: string; variant?: number }) {
+    const on = e.enabled ?? e.status === "live";
     return (
       <div className="flex gap-3">
         <div className="h-24 w-20 shrink-0 overflow-hidden rounded border border-black/10 bg-black/5">{e.templateId && heroOf.get(e.templateId) && <img src={heroOf.get(e.templateId)!} alt="" className="h-full w-full object-cover object-top" />}</div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2"><span className="truncate font-medium">{label ? `${label}: ` : ""}{e.name}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${e.status === "live" ? "bg-green-100 text-green-800" : "bg-black/5 text-black/50"}`}>{e.status}</span></div>
+          <div className="flex items-center gap-2"><span className="truncate font-medium">{label ? `${label}: ` : ""}{e.name}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${e.status === "live" ? "bg-green-100 text-green-800" : "bg-black/5 text-black/50"}`}>Klaviyo: {e.status}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${on ? "bg-brand/10 text-brand" : "bg-black/5 text-black/50"}`}>{on ? "will send" : "skipped"}</span></div>
           <div className="truncate text-sm text-black/70">{e.subject}</div>
           {e.previewText && <div className="truncate text-xs text-black/40">{e.previewText}</div>}
           <div className="mt-1 flex gap-3 text-xs">
             {e.templateId && <Link href={`/templates/${e.templateId}`} className="text-brand hover:underline">Klaviyo version</Link>}
-            {e.ourTemplateId ? <Link href={`/templates/${e.ourTemplateId}`} className="text-brand hover:underline">Our version</Link> : <span className="text-black/40">Our version: not built yet</span>}
+            {e.ourTemplateId ? <Link href={`/templates/${e.ourTemplateId}`} className="text-brand hover:underline">Our version</Link> : <span className="text-black/40">Our version: using Klaviyo HTML</span>}
+            {(e.ourTemplateId ?? e.templateId) && <SendTest templateId={Number(e.ourTemplateId ?? e.templateId)} subject={e.subject} />}
+            <EmailToggle flowId={Number(f.id)} stepId={stepId} variant={variant} enabled={on} />
           </div>
         </div>
       </div>
@@ -59,8 +63,8 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
 
   function StepCard({ s }: { s: Step }) {
     if (s.type === "time-delay") return <div className="flex items-center gap-2 text-sm text-black/60"><span className="rounded-full bg-black/5 px-2 py-0.5 text-xs">⏱</span>{delayWords(s.delay)}</div>;
-    if (s.type === "send-email" && s.email) return <div className="rounded-lg border border-black/10 bg-white p-3"><EmailCard e={s.email} /></div>;
-    if (s.type === "ab-test") return <div className="rounded-lg border border-black/10 bg-white p-3"><div className="mb-2 text-xs text-black/50">A/B test ({s.abStatus})</div>{s.email && <EmailCard e={s.email} label="A" />}{(s.variants ?? []).map((v, i) => <div key={i} className="mt-3 border-t border-black/5 pt-3"><EmailCard e={v} label={String.fromCharCode(66 + i)} /></div>)}</div>;
+    if (s.type === "send-email" && s.email) return <div className="rounded-lg border border-black/10 bg-white p-3"><EmailCard e={s.email} stepId={s.id} /></div>;
+    if (s.type === "ab-test") return <div className="rounded-lg border border-black/10 bg-white p-3"><div className="mb-2 text-xs text-black/50">A/B test ({s.abStatus})</div>{s.email && <EmailCard e={s.email} label="A" stepId={s.id} />}{(s.variants ?? []).map((v, i) => <div key={i} className="mt-3 border-t border-black/5 pt-3"><EmailCard e={v} label={String.fromCharCode(66 + i)} stepId={s.id} variant={i} /></div>)}</div>;
     if (s.type === "conditional-split" || s.type === "trigger-split") return <div className="text-sm font-medium">Split</div>;
     return <div className="text-xs text-black/50">{s.type}</div>;
   }
@@ -73,7 +77,7 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <Link href="/flows" className="text-sm text-black/50 hover:text-black">← Flows</Link>
-      <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{String(f.name)}</h1><span className={`rounded px-2 py-0.5 text-xs ${f.klaviyo_status === "live" ? "bg-green-100 text-green-800" : "bg-black/5 text-black/60"}`}>Klaviyo: {String(f.klaviyo_status)}</span><span className="rounded bg-black/5 px-2 py-0.5 text-xs text-black/60">Here: {String(f.status)}</span></div>
+      <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{String(f.name)}</h1><span className={`rounded px-2 py-0.5 text-xs ${f.klaviyo_status === "live" ? "bg-green-100 text-green-800" : "bg-black/5 text-black/60"}`}>Klaviyo: {String(f.klaviyo_status)}</span><FlowStatus id={Number(f.id)} status={String(f.status)} /></div>
       <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">
         <div className="font-medium">{trigWords}</div>
         {!!trigFilter && <div className="mt-1 text-xs text-black/60">Only if: {JSON.stringify(trigFilter).includes("form_id") ? "a specific signup form was submitted" : translate(trigFilter).words}</div>}
