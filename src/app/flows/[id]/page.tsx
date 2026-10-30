@@ -32,16 +32,23 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
       else if ((st.type === "send-email" || st.type === "ab-test") && st.email) { emailNo++; items.push(<li key={st.id} className="relative py-2"><span className="absolute -left-[36px] top-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-white">{emailNo}</span><StepCard s={st} /></li>); }
       else if (st.type === "conditional-split" || st.type === "trigger-split") {
         const t = translate((st.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter);
-        items.push(
-          <li key={st.id} className="relative py-2">
-            <span className="absolute -left-[31px] top-3 h-2.5 w-2.5 rotate-45 bg-amber-400" />
-            <div className="mb-2 text-sm text-amber-800">Is it true that they {t.words.replace(/\n/g, " ")}?</div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-lg border border-green-200 bg-green-50/40 p-3"><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-green-700">Yes</div>{st.links.next_if_true ? <Timeline start={st.links.next_if_true} /> : <div className="text-xs text-black/40">End of flow</div>}</div>
-              <div className="rounded-lg border border-black/10 bg-white/60 p-3"><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-black/50">No</div>{st.links.next_if_false ? <Timeline start={st.links.next_if_false} /> : <div className="text-xs text-black/40">End of flow</div>}</div>
-            </div>
-          </li>);
-        break;
+        const words = t.words.replace(/\n/g, " ");
+        const yes = st.links.next_if_true, no = st.links.next_if_false;
+        if (yes && no) {
+          items.push(
+            <li key={st.id} className="relative py-2">
+              <span className="absolute -left-[31px] top-3 h-2.5 w-2.5 rotate-45 bg-amber-400" />
+              <div className="mb-2 text-sm text-amber-800">Have they {words}?</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="min-w-0 rounded-lg border border-green-200 bg-green-50/40 p-3"><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-green-700">Yes</div><Timeline start={yes} /></div>
+                <div className="min-w-0 rounded-lg border border-black/10 bg-white/60 p-3"><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-black/50">No</div><Timeline start={no} /></div>
+              </div>
+            </li>);
+          break;
+        }
+        // one-sided split = a gate: say who stops here, then carry on in the same column
+        items.push(<li key={st.id} className="relative py-2 text-sm"><span className="absolute -left-[31px] top-3 h-2.5 w-2.5 rotate-45 bg-amber-400" /><span className="text-amber-800">{yes ? `Stop here unless they ${words}` : `Stop here if they ${words}`}</span></li>);
+        cur = yes ?? no ?? null; continue;
       }
       cur = st.links.next ?? null;
     }
