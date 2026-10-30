@@ -4,13 +4,13 @@ import { translate } from "@/lib/rules";
 
 export default async function ContactsPage() {
   const [counts] = await sql`select count(*) filter (where status='subscribed')::int subscribed, count(*) filter (where status='unsubscribed')::int unsubscribed, count(*) filter (where status='suppressed')::int suppressed, count(*) filter (where status='never_subscribed')::int never, count(*)::int total from contacts`;
-  const segs = await sql`select id, name, definition, is_active, klaviyo_count, source from segments order by name`;
-  const rows: { id: number; name: string; klaviyo_count: number | null; words: string; ours: number | null; supported: boolean; unsupported: string[] }[] = [];
+  const segs = await sql`select id, name, description, definition, is_active, klaviyo_count, source from segments order by name`;
+  const rows: { id: number; name: string; description: string | null; klaviyo_count: number | null; words: string; ours: number | null; supported: boolean; unsupported: string[] }[] = [];
   for (const s of segs) {
     const t = translate(s.definition);
     let ours: number | null = null;
     if (t.sql) { try { ours = Number((await sql.query(`select count(*)::int n from contacts c where ${t.sql}`))[0].n); } catch { ours = null; } }
-    rows.push({ id: s.id, name: s.name, klaviyo_count: s.klaviyo_count, words: t.words, ours, supported: t.supported, unsupported: t.unsupported });
+    rows.push({ id: s.id, name: s.name, description: s.description, klaviyo_count: s.klaviyo_count, words: t.words, ours, supported: t.supported, unsupported: t.unsupported });
   }
   const Stat = ({ l, v }: { l: string; v: number }) => <div className="rounded-lg border border-black/10 bg-white p-4"><div className="text-2xl font-semibold">{v.toLocaleString()}</div><div className="text-xs uppercase tracking-wide text-black/50">{l}</div></div>;
   return (
@@ -21,11 +21,11 @@ export default async function ContactsPage() {
       </div>
       <h2 className="mt-10 text-lg font-semibold">Segments <span className="text-sm font-normal text-black/50">— Klaviyo definitions, evaluated on our data</span></h2>
       <table className="mt-4 w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-black/10 bg-white text-sm">
-        <thead className="bg-black/[.03] text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="px-4 py-2">Segment</th><th className="px-4 py-2">Rules</th><th className="px-4 py-2 text-right">Klaviyo</th><th className="px-4 py-2 text-right">Ours</th></tr></thead>
+        <thead className="bg-black/[.03] text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="px-4 py-2">Segment</th><th className="px-4 py-2">Exact rules</th><th className="px-4 py-2 text-right">Klaviyo</th><th className="px-4 py-2 text-right">Ours</th></tr></thead>
         <tbody>
           {rows.map(s => (
             <tr key={s.id} className="border-t border-black/5 align-top">
-              <td className="px-4 py-3 font-medium">{s.name}</td>
+              <td className="px-4 py-3"><div className="font-medium">{s.name}</div><div className="text-xs text-black/50">{s.description}</div></td>
               <td className="px-4 py-3 whitespace-pre-line text-xs text-black/70">{s.words}{!s.supported && <div className="mt-1 text-amber-700">Not yet evaluable here: {s.unsupported.join("; ")}</div>}</td>
               <td className="px-4 py-3 text-right tabular-nums">{s.klaviyo_count?.toLocaleString() ?? "—"}</td>
               <td className="px-4 py-3 text-right tabular-nums">{s.ours?.toLocaleString() ?? <span className="text-black/40">—</span>}</td>
