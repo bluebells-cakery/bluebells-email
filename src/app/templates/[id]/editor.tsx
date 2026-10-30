@@ -3,6 +3,10 @@ import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import type { EditorRef, EmailEditorProps } from "react-email-editor";
 import { MediaLibrary, type MediaItem } from "@/components/media-library";
+import { brand } from "@/lib/brand";
+
+const brandColours = Object.values(brand.colours).flat().map(([, hex]) => hex);
+const fontUrl = (g: string) => `https://fonts.googleapis.com/css2?family=${g}&display=swap`;
 
 const EmailEditor = dynamic(() => import("react-email-editor"), { ssr: false });
 
@@ -42,8 +46,18 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
           options={{
             projectId: Number(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID) || undefined,
             displayMode: "email",
-            appearance: { theme: "modern_light" },
+            appearance: { theme: "modern_light", colorPicker: { presets: brandColours } },
             features: { textEditor: { spellChecker: true } },
+            fonts: {
+              showDefaultFonts: false,
+              customFonts: [
+                { label: "Crimson Pro (headings)", value: `'Crimson Pro', Georgia, 'Times New Roman', serif`, url: fontUrl(brand.fonts.heading.google) },
+                { label: "Poppins (body)", value: `'Poppins', Arial, Helvetica, sans-serif`, url: fontUrl(brand.fonts.body.google) },
+                { label: "Georgia (fallback serif)", value: "Georgia, 'Times New Roman', serif" },
+                { label: "Arial (fallback sans)", value: "Arial, Helvetica, sans-serif" },
+              ],
+            },
+            designTags: { brand_navy: "#262967", brand_cream: "#fffdf8", brand_teal: "#00bfb3" },
             mergeTags: {
               first_name: { name: "First name", value: "{{first_name}}" },
               last_name: { name: "Last name", value: "{{last_name}}" },
