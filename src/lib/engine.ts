@@ -107,10 +107,10 @@ export async function processQueue(limit = 50) {
   const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token
     from send_queue q join contacts c on c.id = q.contact_id where q.status = 'queued' and q.send_after <= now() order by q.id limit ${limit}`;
   let sent = 0, skipped = 0;
-  for (const r of rows) {
+  const work = async (r: (typeof rows)[number]) => {
     const suppressed = (await sql`select 1 from suppressions where email = ${r.email}`).length > 0;
-    if (r.status !== "subscribed" || suppressed) { await sql`update send_queue set status = 'skipped', error = 'not subscribed / suppressed' where id = ${r.id}`; skipped++; continue; }
-    if (mode === "shadow" || (mode === "test" && !allow.includes(String(r.email).toLowerCase()))) { await sql`update send_queue set status = 'skipped', error = ${"engine mode " + mode} where id = ${r.id}`; skipped++; continue; }
+    if (r.status !== "subscribed" || suppressed) { await sql`update send_queue set status = 'skipped', error = 'not subscribed / suppressed' where id = ${r.id}`; skipped++; return; }
+    if (mode === "shadow" || (mode === "test" && !allow.includes(String(r.email).toLowerCase()))) { await sql`update send_queue set status = 'skipped', error = ${"engine mode " + mode} where id = ${r.id}`; skipped++; return; }
     try {
       const id = await sendEmail({ to: r.email, subject: r.subject, html: r.html, text: textVersion(r.html), fromName: r.from_name ?? undefined, fromEmail: r.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", unsubscribeUrl: `${APP()}/u/${r.unsubscribe_token}`, tags: { flow: String(r.flow_id ?? ""), campaign: String(r.campaign_id ?? "") } });
       await sql`update send_queue set status = 'sent', sent_at = now(), ses_message_id = ${id}, attempts = attempts + 1 where id = ${r.id}`;
@@ -119,6 +119,7 @@ export async function processQueue(limit = 50) {
     } catch (e) {
       await sql`update send_queue set attempts = attempts + 1, error = ${(e as Error).message}, status = case when attempts >= 2 then 'failed' else 'queued' end, send_after = now() + interval '10 minutes' where id = ${r.id}`;
     }
-  }
+  };
+  for (let i = 0; i < rows.length; i += 8) await Promise.all(rows.slice(i, i + 8).map(work));
   return { mode, sent, skipped };
 }
