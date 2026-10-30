@@ -5,6 +5,7 @@ export type RenderCtx = {
   checkout?: { url: string; line_items: { title: string; handle?: string; quantity: number; line_price: string; image?: string | null }[] } | null;
   order?: { name?: string } | null;
   products?: { title: string; url: string; image?: string | null; price?: string }[];
+  coupons?: Record<string, string>;   // pool → code, resolved by the engine before rendering
 };
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
 const ORG = { name: "Bluebells Cakery", full_address: "Auckland, New Zealand", url: SITE_URL };
@@ -36,7 +37,7 @@ export function renderTemplate(html: string, ctx: RenderCtx): string {
   h = h.replace(/\{\{\s*organization\.full_address\s*\}\}/g, ORG.full_address);
   h = h.replace(/\{\{\s*person\.first_name\|default:\s*['"]([^'"]*)['"]\s*\}\}/g, (_, d) => ctx.first_name || d);
   h = h.replace(/\{\{\s*(person\.)?first_name[^}]*\}\}/g, ctx.first_name ?? "");
-  h = h.replace(/\{%\s*coupon_code\s*['"]([^'"]+)['"]\s*%\}/g, "$1");
+  h = h.replace(/\{%\s*coupon_code\s*['"]([^'"]+)['"]\s*%\}/g, (_, pool) => ctx.coupons?.[pool] ?? pool);
   h = h.replace(/\{%\s*current_year\s*%\}/g, String(new Date().getFullYear()));
   h = h.replace(/\{%\s*unsubscribe_link\s*%\}/g, ctx.unsubscribe_url);
   h = h.replace(/\{%\s*unsubscribe\s*%\}/g, `<a href="${ctx.unsubscribe_url}" style="color:inherit;text-decoration:underline">Unsubscribe</a>`);
@@ -49,6 +50,8 @@ export function renderTemplate(html: string, ctx: RenderCtx): string {
 }
 
 /** Wrap http(s) links with click tracking and append an open pixel. */
+export function couponPools(html: string): string[] { return [...new Set([...html.matchAll(/\{%\s*coupon_code\s*['"]([^'"]+)['"]\s*%\}/g)].map(m => m[1]))]; }
+
 export function instrument(html: string, token: string): string {
   const base = APP();
   let h = html.replace(/href="(https?:\/\/[^"]+)"/g, (m, url) => {
