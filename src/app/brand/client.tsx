@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { brand as Brand } from "@/lib/brand";
+import { WavyCircle } from "./wavy-circle";
 
 type B = typeof Brand;
 
@@ -92,6 +93,8 @@ export function BrandClient({ brand }: { brand: B }) {
           <div className="mt-4 overflow-hidden rounded" style={{ background: waveBg }} dangerouslySetInnerHTML={{ __html: waveSvg(1158, 60).replace('width="1158" height="60"', 'width="100%" height="60"') }} />
           <p className="mt-2 text-xs text-black/50">On the site the wave sits between a coloured section and the next; in email, place the PNG as a full-width image directly under a block with the “Wave” colour as its background.</p>
         </div>
+
+        <WavyCircle />
 
         <div className="mt-6 rounded-lg border border-black/10 bg-white p-5">
           <div className="flex flex-wrap items-center gap-4">
