@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type S = { mode: string; testEmails: string; queue: { queued: number; sent24: number; skipped24: number; failed: number }; runs: { active: number; done: number }; lastTick: { at: string; out: Record<string, unknown> } | null };
+type S = { mode: string; testEmails: string; smartHours: number; queue: { queued: number; sent24: number; skipped24: number; failed: number }; runs: { active: number; done: number }; lastTick: { at: string; out: Record<string, unknown> } | null };
 
 export function EnginePanel() {
   const [s, setS] = useState<S | null>(null); const [emails, setEmails] = useState("");
@@ -18,6 +18,7 @@ export function EnginePanel() {
         <div>
           <div className="mb-2 text-xs uppercase tracking-wide text-black/50">Sending mode</div>
           <div className="flex gap-2"><Mode m="shadow" l="Shadow" d="Run flows, send nothing" /><Mode m="test" l="Test" d="Send only to test addresses" /><Mode m="live" l="Live" d="Send to customers" /></div>
+          <div className="mt-2 flex items-center gap-2 text-xs"><span className="text-black/50">Smart sending: skip campaigns / hold flow emails if someone was emailed in the last</span><input type="number" min={0} max={72} defaultValue={s.smartHours} onBlur={e => set({ smartHours: e.target.value })} className="w-14 rounded border border-black/10 px-2 py-1" /><span className="text-black/50">hours</span></div>
           <div className="mt-2 flex items-center gap-2 text-xs"><span className="text-black/50">Test addresses</span><input value={emails} onChange={e => setEmails(e.target.value)} onBlur={() => set({ testEmails: emails })} className="w-80 rounded border border-black/10 px-2 py-1" /></div>
         </div>
         <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">

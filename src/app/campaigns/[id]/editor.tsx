@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Audience = { include: "subscribed" | "segments"; segment_ids: number[]; exclude_segment_ids: number[] };
-type C = { id: number; name: string; subject: string | null; preview_text: string | null; from_name: string | null; template_id: number | null; html: string | null; status: string; scheduled_at: string | null; recipient_count: number | null; audience: Audience; sent_at: string | null };
+type C = { id: number; name: string; smart_sending: boolean; subject: string | null; preview_text: string | null; from_name: string | null; template_id: number | null; html: string | null; status: string; scheduled_at: string | null; recipient_count: number | null; audience: Audience; sent_at: string | null };
 type T = { id: number; name: string; kind: string; subject: string | null };
 type S = { id: number; name: string; supported: boolean };
 
@@ -61,7 +61,8 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
             {c.audience.include === "segments" && <div className="mt-3 grid grid-cols-2 gap-1 text-sm">{segments.filter(s => s.supported).map(s => <label key={s.id} className="flex items-center gap-2"><input type="checkbox" disabled={locked} checked={c.audience.segment_ids.includes(s.id)} onChange={() => toggle("segment_ids", s.id)} />{s.name}</label>)}</div>}
             <div className="mt-4 text-xs uppercase tracking-wide text-black/50">Exclude</div>
             <div className="mt-1 grid grid-cols-2 gap-1 text-sm">{segments.filter(s => s.supported).map(s => <label key={s.id} className="flex items-center gap-2"><input type="checkbox" disabled={locked} checked={c.audience.exclude_segment_ids.includes(s.id)} onChange={() => toggle("exclude_segment_ids", s.id)} />{s.name}</label>)}</div>
-            <div className="mt-4 text-sm">Estimated recipients: <b>{count?.toLocaleString() ?? "…"}</b> <span className="text-black/50">(subscribed, not suppressed)</span></div>
+            <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" disabled={locked} checked={c.smart_sending} onChange={e => { setC({ ...c, smart_sending: e.target.checked }); patch({ smart_sending: e.target.checked }); }} /> Smart sending — skip anyone emailed in the last 16 hours</label>
+            <div className="mt-2 text-sm">Estimated recipients: <b>{count?.toLocaleString() ?? "…"}</b> <span className="text-black/50">(subscribed, not suppressed)</span></div>
           </section>
         </div>
         <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 text-sm">

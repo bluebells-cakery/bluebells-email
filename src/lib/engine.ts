@@ -104,6 +104,12 @@ export async function tickFlows(limit = 200) {
 export async function processQueue(limit = 50) {
   const mode = (await getSetting("engine_mode")) ?? "shadow";
   const allow = ((await getSetting("test_emails")) ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/).filter(Boolean).map(s => s.toLowerCase());
+  const smartHours = Number((await getSetting("smart_send_hours")) ?? 16);
+  // Smart sending: campaigns skip anyone emailed in the last N hours; flow emails wait until the window has passed (max 24h).
+  await sql`update send_queue q set status = 'skipped', error = 'smart sending: emailed recently' from contacts c, campaigns ca
+    where q.contact_id = c.id and q.campaign_id = ca.id and ca.smart_sending and q.status = 'queued' and q.send_after <= now() and c.last_sent_at > now() - (${smartHours} || ' hours')::interval`;
+  await sql`update send_queue q set send_after = least(c.last_sent_at + (${smartHours} || ' hours')::interval, q.created_at + interval '24 hours') from contacts c
+    where q.contact_id = c.id and q.flow_id is not null and q.status = 'queued' and q.send_after <= now() and c.last_sent_at > now() - (${smartHours} || ' hours')::interval and q.send_after < c.last_sent_at + (${smartHours} || ' hours')::interval and q.created_at + interval '24 hours' > now()`;
   const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token
     from send_queue q join contacts c on c.id = q.contact_id where q.status = 'queued' and q.send_after <= now() order by q.id limit ${limit}`;
   let sent = 0, skipped = 0;
@@ -114,6 +120,7 @@ export async function processQueue(limit = 50) {
     try {
       const id = await sendEmail({ to: r.email, subject: r.subject, html: r.html, text: textVersion(r.html), fromName: r.from_name ?? undefined, fromEmail: r.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", unsubscribeUrl: `${APP()}/u/${r.unsubscribe_token}`, tags: { flow: String(r.flow_id ?? ""), campaign: String(r.campaign_id ?? "") } });
       await sql`update send_queue set status = 'sent', sent_at = now(), ses_message_id = ${id}, attempts = attempts + 1 where id = ${r.id}`;
+      await sql`update contacts set last_sent_at = now() where id = ${r.contact_id}`;
       await sql`insert into events (contact_id, send_id, flow_id, campaign_id, type, source) values (${r.contact_id}, ${r.id}, ${r.flow_id}, ${r.campaign_id}, 'sent', 'app')`;
       sent++;
     } catch (e) {
