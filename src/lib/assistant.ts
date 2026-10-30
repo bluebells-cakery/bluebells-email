@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
 import { sql } from "@/lib/db";
@@ -83,7 +84,7 @@ async function specToRows(rows: Item[]): Promise<Row[]> {
           if (it.maxWidth) (img.values.src as Record<string, unknown>).maxWidth = `${it.maxWidth}px`;
           contents.push(img);
         }
-        else if (it.type === "button") contents.push(button(String(it.label ?? "Shop now"), String(it.href ?? "https://bluebellscakery.com"), { bg: it.bg as string }));
+        else if (it.type === "button") contents.push(button(String(it.label ?? "Shop now"), String(it.href ?? SITE_URL), { bg: it.bg as string }));
         else if (it.type === "wave") contents.push(image(await renderWave(String(it.fill ?? "#fbe7e6"), String(it.behind ?? "#fffdf8"), !!it.flip), 1200, 41));
       }
       columns.push({ contents, values: { backgroundColor: c.background ?? "", padding: "0px", border: {} } });

@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 // Renders Klaviyo-style template HTML with our data, and instruments links/opens for tracking.
 export type RenderCtx = {
   first_name?: string | null; email: string; unsubscribe_url: string; token: string;
@@ -6,7 +7,7 @@ export type RenderCtx = {
   products?: { title: string; url: string; image?: string | null; price?: string }[];
 };
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
-const ORG = { name: "Bluebells Cakery", full_address: "Auckland, New Zealand", url: "https://bluebellscakery.com" };
+const ORG = { name: "Bluebells Cakery", full_address: "Auckland, New Zealand", url: SITE_URL };
 
 export function renderTemplate(html: string, ctx: RenderCtx): string {
   let h = html;

@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 import { sql } from "@/lib/db";
 import { shopifyGraphql } from "@/lib/shopify";
 import { startFlow } from "@/lib/engine";
@@ -11,7 +12,7 @@ async function productLookup(title: string) {
   if (imgCache.has(key)) return imgCache.get(key)!;
   let out = { image: null as string | null, handle: null as string | null };
   try {
-    const r = await fetch(`https://bluebellscakery.com/search/suggest.json?q=${encodeURIComponent(key)}&resources[type]=product&resources[limit]=5`, { headers: { "user-agent": "Mozilla/5.0 BluebellsEDM" } });
+    const r = await fetch(`${SITE_URL}/search/suggest.json?q=${encodeURIComponent(key)}&resources[type]=product&resources[limit]=5`, { headers: { "user-agent": "Mozilla/5.0 BluebellsEDM" } });
     const j = await r.json(); const ps = j.resources?.results?.products ?? [];
     const p = ps.find((x: { title: string }) => x.title.toLowerCase() === key.toLowerCase()) ?? ps[0];
     if (p) out = { image: typeof p.image === "string" ? p.image.replace(/(\.[a-z]+)(\?.*)?$/i, "_400x400$1") : null, handle: p.handle ?? null };

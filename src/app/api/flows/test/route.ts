@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db";
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
   if (!t?.html) return NextResponse.json({ error: "no template html" }, { status: 400 });
   const token = "test-" + randomBytes(6).toString("hex");
   const html = instrument(renderTemplate(t.html, { first_name: "Ryan", email: to, token, unsubscribe_url: "https://edm.bluebellscakery.co.nz/u/test",
-    checkout: { url: "https://bluebellscakery.com/cart", line_items: [{ title: "20CM Classic Cake - Chocolate & Salted Caramel", quantity: 1, line_price: "89.00", image: "https://bluebellscakery.com/cdn/shop/files/cake_image_2.png", handle: "classic-cake" }] },
+    checkout: { url: `${SITE_URL}/cart`, line_items: [{ title: "20CM Classic Cake - Chocolate & Salted Caramel", quantity: 1, line_price: "89.00", image: `${SITE_URL}/cdn/shop/files/cake_image_2.png`, handle: "classic-cake" }] },
     order: { name: "#TEST" }, products: [] }), token);
   try {
     const id = await sendEmail({ to, subject: `[TEST] ${subject ?? t.subject ?? "Bluebells"}`, html, text: textVersion(html), fromName: t.from_name ?? "Bluebells Cakery", replyTo: "orders@bluebellscakery.co.nz" });
