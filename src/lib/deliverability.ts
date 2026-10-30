@@ -27,7 +27,9 @@ export async function byProvider(days: number) {
       count(*) filter (where exists (select 1 from events e where e.send_id = q.id and e.type='click' and e.source='app'))::int clicked
     from send_queue q join contacts c on c.id = q.contact_id where q.sent_at > now() - ($1 || ' days')::interval group by 1`, [String(days)]);
   const subs = await subscribersByProvider();
-  return subs.map(s => ({ provider: s.provider as string, subscribers: Number(s.n), ...(sent.find(x => x.provider === s.provider) ?? { sent: 0, delivered: 0, bounced: 0, complaints: 0, opened: 0, clicked: 0 }) }));
+  type P = { sent: number; delivered: number; bounced: number; complaints: number; opened: number; clicked: number };
+  const zero: P = { sent: 0, delivered: 0, bounced: 0, complaints: 0, opened: 0, clicked: 0 };
+  return subs.map(s => { const x = sent.find(r => r.provider === s.provider); const st: P = x ? { sent: x.sent, delivered: x.delivered, bounced: x.bounced, complaints: x.complaints, opened: x.opened, clicked: x.clicked } : zero; return { provider: String(s.provider), subscribers: Number(s.n), ...st }; });
 }
 
 export async function subscribersByProvider() {
