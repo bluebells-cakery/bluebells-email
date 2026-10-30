@@ -28,7 +28,9 @@ export function condition(c: Cond): { words: string; sql: string | null; support
       return { words: c.consent?.can_receive_marketing === false ? "cannot receive email marketing" : "can receive email marketing", sql: c.consent?.can_receive_marketing === false ? "c.status <> 'subscribed'" : "c.status = 'subscribed'", supported: true };
     case "profile-metric": {
       const name = METRICS[c.metric_id] ?? c.metric_id; const tf = timeframe(c.timeframe_filter); const mf = c.measurement_filter ?? {};
-      const words = `has ${name} ${OPW[mf.operator] ?? mf.operator} ${mf.value} time${mf.value === 1 ? "" : "s"} ${tf.words}`;
+      const verb = name.replace(/^Placed Order$/, "ordered").replace(/^Opened Email$/, "opened an email").replace(/^Clicked Email$/, "clicked an email").replace(/^Received Email$/, "received an email").replace(/^Checkout Started$/, "started a checkout").replace(/^Active on Site$/, "visited the site");
+      const isZero = mf.operator === "equals" && Number(mf.value) === 0, isAny = mf.operator === "greater-than" && Number(mf.value) === 0;
+      const words = isZero ? `has not ${verb} ${tf.words}` : isAny ? `has ${verb} ${tf.words}` : `has ${verb} ${OPW[mf.operator] ?? mf.operator} ${mf.value} time${mf.value === 1 ? "" : "s"} ${tf.words}`;
       const gen = METRIC_SQL[name];
       return { words, sql: gen ? `${gen(tf.sql)} ${OPS[mf.operator] ?? "="} ${Number(mf.value)}` : null, supported: !!gen };
     }
