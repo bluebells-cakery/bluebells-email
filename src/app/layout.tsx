@@ -9,6 +9,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = { title: "Bluebells EDM", description: "Bluebells Cakery email marketing" };
 
 const nav = [
+  ["/dashboard", "Dashboard"],
   ["/campaigns", "Campaigns"],
   ["/flows", "Flows"],
   ["/templates", "Templates"],
