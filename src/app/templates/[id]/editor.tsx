@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import type { EditorRef, EmailEditorProps } from "react-email-editor";
+import { MediaLibrary, type MediaItem } from "@/components/media-library";
 
 const EmailEditor = dynamic(() => import("react-email-editor"), { ssr: false });
 
@@ -9,6 +10,7 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
   const ref = useRef<EditorRef>(null);
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [picker, setPicker] = useState<((url: string) => void) | null>(null);
 
   const save = () => {
     const u = ref.current?.editor; if (!u) return;
@@ -21,6 +23,10 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
 
   const onReady: EmailEditorProps["onReady"] = (u) => {
     if (design && Object.keys(design).length) u.loadDesign(design as never);
+    // Replace Unlayer's image picker with our media library
+    u.registerCallback("selectImage", (_data: unknown, done: (r: { url: string }) => void) => {
+      setPicker(() => (url: string) => { done({ url }); setPicker(null); });
+    });
   };
 
   return (
@@ -31,24 +37,32 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
         <div className="flex-1" />
         <button onClick={save} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">Save</button>
       </div>
-      <div className="flex-1 min-h-0">
-        <EmailEditor
-          ref={ref}
-          onReady={onReady}
-          minHeight="100%"
+      <div className="min-h-0 flex-1">
+        <EmailEditor ref={ref} onReady={onReady} minHeight="100%"
           options={{
             projectId: Number(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID) || undefined,
             displayMode: "email",
             appearance: { theme: "modern_light" },
+            features: { textEditor: { spellChecker: true } },
             mergeTags: {
               first_name: { name: "First name", value: "{{first_name}}" },
               last_name: { name: "Last name", value: "{{last_name}}" },
               email: { name: "Email", value: "{{email}}" },
               unsubscribe_url: { name: "Unsubscribe link", value: "{{unsubscribe_url}}" },
             },
-          }}
-        />
+          }} />
       </div>
+      {picker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => setPicker(null)}>
+          <div className="flex h-[85vh] w-[90vw] max-w-6xl flex-col overflow-hidden rounded-lg bg-background shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-black/10 bg-white px-4 py-2">
+              <h2 className="font-medium">Choose an image</h2>
+              <button onClick={() => setPicker(null)} className="text-sm text-black/60 hover:text-black">Close</button>
+            </div>
+            <div className="min-h-0 flex-1"><MediaLibrary compact onSelect={(m: MediaItem) => picker(m.url)} /></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
