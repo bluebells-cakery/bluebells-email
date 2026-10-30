@@ -1,3 +1,4 @@
+import type React from "react";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,43 +21,38 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
   const heroes = await sql`select t.id, (select url from media m where t.html like '%' || split_part(m.url, '?', 1) || '%' and m.folder not like '%social%' order by m.width desc nulls last limit 1) as hero from templates t where t.source = 'klaviyo'`;
   const heroOf = new Map(heroes.map(h => [Number(h.id), h.hero as string | null]));
 
-  // Linear timeline: follow the main path; a split continues down its YES branch and the NO branch is listed afterwards as its own section.
+  // Timeline; a split opens two side-by-side columns (Yes / No), each its own timeline.
   const seen = new Set<string>();
-  function walk(start: string | null): { main: Step[]; branches: { label: string; steps: Step[] }[] } {
-    const main: Step[] = []; const branches: { label: string; steps: Step[] }[] = []; let cur = start;
+  let emailNo = 0;
+  function Timeline({ start }: { start: string | null }) {
+    const items: React.ReactNode[] = []; let cur = start;
     while (cur && !seen.has(cur)) {
-      const st = byId.get(cur); if (!st) break; seen.add(cur); main.push(st);
-      if (st.type === "conditional-split" || st.type === "trigger-split") {
+      const st = byId.get(cur); if (!st) break; seen.add(cur);
+      if (st.type === "time-delay") items.push(<li key={st.id} className="relative py-2 text-sm text-black/50"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rounded-full border-2 border-black/20 bg-white" />{delayWords(st.delay)}</li>);
+      else if ((st.type === "send-email" || st.type === "ab-test") && st.email) { emailNo++; items.push(<li key={st.id} className="relative py-2"><span className="absolute -left-[36px] top-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-white">{emailNo}</span><StepCard s={st} /></li>); }
+      else if (st.type === "conditional-split" || st.type === "trigger-split") {
         const t = translate((st.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter);
-        const yes = walk(st.links.next_if_true); const no = walk(st.links.next_if_false);
-        main.push(...yes.main); branches.push(...yes.branches);
-        if (no.main.length) branches.push({ label: `Otherwise (not: ${t.words.replace(/\n/g, " ")})`, steps: no.main }); branches.push(...no.branches);
+        items.push(
+          <li key={st.id} className="relative py-2">
+            <span className="absolute -left-[31px] top-3 h-2.5 w-2.5 rotate-45 bg-amber-400" />
+            <div className="mb-2 text-sm text-amber-800">Is it true that they {t.words.replace(/\n/g, " ")}?</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-lg border border-green-200 bg-green-50/40 p-3"><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-green-700">Yes</div>{st.links.next_if_true ? <Timeline start={st.links.next_if_true} /> : <div className="text-xs text-black/40">End of flow</div>}</div>
+              <div className="rounded-lg border border-black/10 bg-white/60 p-3"><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-black/50">No</div>{st.links.next_if_false ? <Timeline start={st.links.next_if_false} /> : <div className="text-xs text-black/40">End of flow</div>}</div>
+            </div>
+          </li>);
         break;
       }
       cur = st.links.next ?? null;
     }
-    return { main, branches };
-  }
-  const tree = walk(def.entry);
-  let emailNo = 0;
-  function Timeline({ steps }: { steps: Step[] }) {
-    return (
-      <ol className="relative ml-3 border-l border-black/10 pl-6">
-        {steps.map(st => {
-          if (st.type === "time-delay") return <li key={st.id} className="relative py-2 text-sm text-black/50"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rounded-full border-2 border-black/20 bg-white" />{delayWords(st.delay)}</li>;
-          if (st.type === "conditional-split" || st.type === "trigger-split") { const t = translate((st.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter); return <li key={st.id} className="relative py-2 text-sm"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rotate-45 bg-amber-400" /><span className="text-amber-800">If {t.words.replace(/\n/g, " ")} →</span></li>; }
-          if ((st.type === "send-email" || st.type === "ab-test") && st.email) { emailNo++; return <li key={st.id} className="relative py-2"><span className="absolute -left-[36px] top-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-white">{emailNo}</span><StepCard s={st} /></li>; }
-          return null;
-        })}
-      </ol>
-    );
+    return <ol className="relative ml-3 border-l border-black/10 pl-6">{items}{items.length === 0 && <li className="py-1 text-xs text-black/40">End of flow</li>}</ol>;
   }
 
   function EmailCard({ e, label, stepId, variant }: { e: Email; label?: string; stepId: string; variant?: number }) {
     const on = e.enabled ?? e.status === "live";
     return (
       <div className="flex gap-3">
-        <div className="h-24 w-20 shrink-0 overflow-hidden rounded border border-black/10 bg-black/5">{e.templateId && heroOf.get(e.templateId) && <img src={heroOf.get(e.templateId)!} alt="" className="h-full w-full object-cover object-top" />}</div>
+        <div className="h-16 w-14 shrink-0 overflow-hidden rounded border border-black/10 bg-black/5">{e.templateId && heroOf.get(e.templateId) && <img src={heroOf.get(e.templateId)!} alt="" className="h-full w-full object-cover object-top" />}</div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2"><span className="truncate font-medium">{label ? `${label}: ` : ""}{e.name}</span><span className={`rounded px-1.5 py-0.5 text-[10px] ${on ? "bg-brand/10 text-brand" : "bg-black/5 text-black/50"}`}>{on ? "will send" : "skipped"}</span></div>
           <div className="truncate text-sm text-black/70">{e.subject}</div>
@@ -94,8 +90,7 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
         {!!trigFilter && <div className="mt-1 text-xs text-black/60">Only if: {JSON.stringify(trigFilter).includes("form_id") ? "a specific signup form was submitted" : translate(trigFilter).words}</div>}
         {!!def.profileFilter && <div className="mt-1 text-xs text-black/60">Profile filter: {pf.words.replace(/\n/g, " ")}</div>}
       </div>
-      <div className="mt-6"><Timeline steps={tree.main} /></div>
-      {tree.branches.map((b, i) => (<div key={i} className="mt-8"><div className="mb-2 text-sm font-medium text-black/60">{b.label}</div><Timeline steps={b.steps} /></div>))}
+      <div className="mt-6"><Timeline start={def.entry} /></div>
     </div>
   );
 }
