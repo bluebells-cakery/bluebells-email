@@ -15,6 +15,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <div className="mx-auto max-w-7xl px-6 py-10">
       <div className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <Link href="/dashboard/deliverability" className="text-sm text-brand hover:underline">Deliverability →</Link>
         <div className="flex gap-1 rounded-md border border-black/10 bg-white p-0.5 text-sm">{([7, 30, 90, 365] as Period[]).map(p => <Link key={p} href={`/dashboard?d=${p}`} className={`rounded px-3 py-1 ${p === days ? "bg-brand text-white" : "text-black/60 hover:bg-black/5"}`}>{p === 365 ? "12 months" : `${p} days`}</Link>)}</div>
       </div>
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">

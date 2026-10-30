@@ -4,7 +4,7 @@ import { translate } from "@/lib/rules";
 import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
 import { sendEmail } from "@/lib/ses";
-import { getSetting } from "@/lib/settings";
+import { getSetting, setSetting } from "@/lib/settings";
 
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
 type Email = { name: string; subject: string; previewText: string | null; templateId: number | null; status: string; ourTemplateId?: number | null; enabled?: boolean };
@@ -110,8 +110,14 @@ export async function processQueue(limit = 50) {
     where q.contact_id = c.id and q.campaign_id = ca.id and ca.smart_sending and q.status = 'queued' and q.send_after <= now() and c.last_sent_at > now() - (${smartHours} || ' hours')::interval`;
   await sql`update send_queue q set send_after = least(c.last_sent_at + (${smartHours} || ' hours')::interval, q.created_at + interval '24 hours') from contacts c
     where q.contact_id = c.id and q.flow_id is not null and q.status = 'queued' and q.send_after <= now() and c.last_sent_at > now() - (${smartHours} || ' hours')::interval and q.send_after < c.last_sent_at + (${smartHours} || ' hours')::interval and q.created_at + interval '24 hours' > now()`;
+  // Circuit breaker: pause campaign sends (flows continue) if the last 24h look bad.
+  const [h] = await sql`select count(*) filter (where status='sent' and sent_at > now() - interval '24 hours')::int sent,
+      (select count(distinct send_id)::int from events where type='complaint' and occurred_at > now() - interval '24 hours') complaints,
+      (select count(distinct send_id)::int from events where type='bounce' and occurred_at > now() - interval '24 hours') bounces from send_queue`;
+  const paused = h.sent > 200 && (h.complaints / h.sent > 0.001 || h.bounces / h.sent > 0.05);
+  if (paused) await setSetting("campaigns_paused", `${new Date().toISOString()} complaints ${h.complaints}/${h.sent} bounces ${h.bounces}/${h.sent}`); else await setSetting("campaigns_paused", "");
   const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token
-    from send_queue q join contacts c on c.id = q.contact_id where q.status = 'queued' and q.send_after <= now() order by q.id limit ${limit}`;
+    from send_queue q join contacts c on c.id = q.contact_id where q.status = 'queued' and q.send_after <= now() ${paused ? sql`and q.campaign_id is null` : sql``} order by q.id limit ${limit}`;
   let sent = 0, skipped = 0;
   const work = async (r: (typeof rows)[number]) => {
     const suppressed = (await sql`select 1 from suppressions where email = ${r.email}`).length > 0;

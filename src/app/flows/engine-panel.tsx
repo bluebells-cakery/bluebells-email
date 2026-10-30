@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type S = { mode: string; testEmails: string; smartHours: number; queue: { queued: number; sent24: number; skipped24: number; failed: number }; runs: { active: number; done: number }; lastTick: { at: string; out: Record<string, unknown> } | null };
+type S = { campaignsPaused: string | null; mode: string; testEmails: string; smartHours: number; queue: { queued: number; sent24: number; skipped24: number; failed: number }; runs: { active: number; done: number }; lastTick: { at: string; out: Record<string, unknown> } | null };
 
 export function EnginePanel() {
   const [s, setS] = useState<S | null>(null); const [emails, setEmails] = useState("");
@@ -14,6 +14,7 @@ export function EnginePanel() {
   );
   return (
     <div className="mt-6 rounded-lg border border-black/10 bg-white p-4">
+      {s.campaignsPaused && <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800">Campaign sends paused automatically — bounce/complaint rate too high in the last 24h ({s.campaignsPaused}). Flows continue. See Dashboard → Deliverability.</div>}
       <div className="flex flex-wrap items-start gap-6">
         <div>
           <div className="mb-2 text-xs uppercase tracking-wide text-black/50">Sending mode</div>
