@@ -5,6 +5,7 @@ import type { EditorRef, EmailEditorProps } from "react-email-editor";
 import { MediaLibrary, type MediaItem } from "@/components/media-library";
 import { brand } from "@/lib/brand";
 import { BlocksPanel } from "@/components/blocks-panel";
+import { AssistantPanel } from "@/components/assistant-panel";
 import { insertRows } from "@/lib/blocks";
 
 const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex) }));
@@ -18,6 +19,7 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [picker, setPicker] = useState<((url: string) => void) | null>(null);
   const [blocks, setBlocks] = useState(false);
+  const [assist, setAssist] = useState(false);
 
   const insert = (rows: Record<string, unknown>[]) => {
     const u = ref.current?.editor; if (!u) return;
@@ -47,7 +49,8 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
         <input value={name} onChange={e => setName(e.target.value)} className="rounded border border-black/10 px-2 py-1 text-sm font-medium" />
         <span className="text-xs text-black/50">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}</span>
         <div className="flex-1" />
-        <button onClick={() => setBlocks(b => !b)} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
+        <button onClick={() => { setAssist(a => !a); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
+        <button onClick={() => { setBlocks(b => !b); setAssist(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
         <button onClick={save} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">Save</button>
       </div>
       <div className="flex min-h-0 flex-1">
@@ -77,6 +80,7 @@ export function TemplateEditor({ id, name: initialName, design }: { id: string; 
           }} />
       </div>
       {blocks && <BlocksPanel onInsert={insert} onClose={() => setBlocks(false)} />}
+      {assist && <AssistantPanel onInsert={insert} onClose={() => setAssist(false)} />}
       </div>
       {picker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => setPicker(null)}>
