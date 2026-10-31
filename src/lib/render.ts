@@ -3,7 +3,7 @@ import { SITE_URL } from "@/lib/site";
 export type RenderCtx = {
   first_name?: string | null; email: string; unsubscribe_url: string; token: string;
   checkout?: { url: string; line_items: { title: string; handle?: string; quantity: number; line_price: string; image?: string | null }[] } | null;
-  order?: { name?: string } | null;
+  order?: { name?: string; fulfil_date?: string | null; method?: string | null; line_items?: { title: string; quantity: number; handle?: string | null; image?: string | null }[] } | null;
   products?: { title: string; url: string; image?: string | null; price?: string }[];
   coupons?: Record<string, string>;   // pool → code, resolved by the engine before rendering
 };
@@ -23,6 +23,13 @@ export function renderTemplate(html: string, ctx: RenderCtx): string {
       .replace(/\{\{\s*item\.product\.title\s*\}\}/g, it.title)
       .replace(/\{\{\s*item\.quantity[^}]*\}\}/g, String(it.quantity))
       .replace(/\{%\s*currency_format item\.line_price[^%]*%\}/g, `$${it.line_price}`)).join(""));
+  // our own order line-item loop (review request etc.)
+  h = h.replace(/\{%\s*for item in order\.line_items\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g, (_, body) =>
+    (ctx.order?.line_items ?? []).filter(it => it.handle).map(it => body
+      .replace(/\{\{\s*item\.title\s*\}\}/g, it.title).replace(/\{\{\s*item\.image\s*\}\}/g, it.image ?? "")
+      .replace(/\{\{\s*item\.url\s*\}\}/g, `${SITE_URL}/products/${it.handle}`)
+      .replace(/\{\{\s*item\.review_url\s*\}\}/g, `${SITE_URL}/products/${it.handle}?jm_review=1#judgeme_product_reviews`)).join(""));
+  h = h.replace(/\{\{\s*order\.name\s*\}\}/g, ctx.order?.name ?? "");
   // product feed (best sellers) blocks: {% if feeds.X|index:N %}...{% endif %}
   h = h.replace(/\{%\s*if feeds\.\w+\|index:(\d+)\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g, (_, n, body) => {
     const p = ctx.products?.[Number(n)]; if (!p) return "";

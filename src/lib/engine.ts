@@ -8,7 +8,7 @@ import { getSetting, setSetting } from "@/lib/settings";
 
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
 type Email = { name: string; subject: string; previewText: string | null; templateId: number | null; status: string; ourTemplateId?: number | null; enabled?: boolean };
-type Step = { id: string; type: string; links: Record<string, string | null>; email?: Email; variants?: Email[]; delay?: { unit: string; value: number; delay_until_time?: string; timezone?: string }; condition?: { profile_filter?: { condition_groups?: [] } } };
+type Step = { id: string; type: string; links: Record<string, string | null>; email?: Email; variants?: Email[]; delay?: { unit: string; value: number; delay_until_time?: string; timezone?: string }; condition?: { profile_filter?: { condition_groups?: [] } }; waitUntil?: { days: number; from: string; time?: string } };
 type Def = { entry: string; profileFilter?: { condition_groups?: [] } | null; steps: Step[] };
 
 const unitMs: Record<string, number> = { minutes: 60e3, hours: 3600e3, days: 86400e3, weeks: 7 * 86400e3 };
@@ -79,6 +79,18 @@ export async function tickFlows(limit = 200) {
         await sql`update flow_runs set step_id = ${s.links.next ?? null}, next_at = ${next.toISOString()} where id = ${run.id}`;
         if (!s.links.next) await sql`update flow_runs set status = 'done', finished_at = now() where id = ${run.id}`;
         stepId = null; break; // wait
+      }
+      if (s.type === "wait-until" && s.waitUntil) {
+        // N days after a date in the run context (e.g. order.fulfil_date), at a local time; falls back to run start
+        const ctx = run.context as { order?: { fulfil_date?: string | null } };
+        const base = s.waitUntil.from === "order.fulfil_date" && ctx.order?.fulfil_date ? new Date(ctx.order.fulfil_date + "T00:00:00+13:00") : new Date(run.created_at);
+        const [hh, mm] = (s.waitUntil.time ?? "10:00").split(":").map(Number);
+        const nzMidnightOffset = base.getTime() - new Date(base.toLocaleString("en-US", { timeZone: "Pacific/Auckland" })).getTime();
+        const local = new Date(base.toLocaleString("en-US", { timeZone: "Pacific/Auckland" })); local.setDate(local.getDate() + Number(s.waitUntil.days)); local.setHours(hh, mm ?? 0, 0, 0);
+        let next = new Date(local.getTime() + nzMidnightOffset); if (next.getTime() < Date.now()) next = new Date(Date.now() + 60000);
+        await sql`update flow_runs set step_id = ${s.links.next ?? null}, next_at = ${next.toISOString()} where id = ${run.id}`;
+        if (!s.links.next) await sql`update flow_runs set status = 'done', finished_at = now() where id = ${run.id}`;
+        stepId = null; break;
       }
       if (s.type === "send-email" || s.type === "ab-test") {
         const email = s.email;

@@ -8,7 +8,7 @@ import { METRICS } from "@/lib/sync/klaviyo-flows";
 import { FlowStatus, EmailToggle, SendTest } from "../flow-controls";
 
 type Email = { name: string; subject: string; previewText: string | null; templateId: number | null; status: string; ourTemplateId?: number | null; enabled?: boolean };
-type Step = { id: string; type: string; links: Record<string, string | null>; email?: Email; variants?: Email[]; delay?: { unit: string; value: number; delay_until_time?: string }; condition?: { profile_filter?: unknown }; abStatus?: string };
+type Step = { id: string; type: string; links: Record<string, string | null>; email?: Email; variants?: Email[]; delay?: { unit: string; value: number; delay_until_time?: string }; condition?: { profile_filter?: unknown }; abStatus?: string; waitUntil?: { days: number; from: string; time?: string } };
 
 function delayWords(d: Step["delay"]) { if (!d) return ""; return `Wait ${d.value} ${d.unit}${d.value === 1 ? "" : ""}${d.delay_until_time ? ` (until ${d.delay_until_time.slice(0, 5)})` : ""}`; }
 
@@ -28,7 +28,8 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
     const items: React.ReactNode[] = []; let cur = start;
     while (cur && !seen.has(cur)) {
       const st = byId.get(cur); if (!st) break; seen.add(cur);
-      if (st.type === "time-delay") items.push(<li key={st.id} className="relative py-2 text-sm text-black/50"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rounded-full border-2 border-black/20 bg-white" />{delayWords(st.delay)}</li>);
+      if (st.type === "wait-until" && st.waitUntil) items.push(<li key={st.id} className="relative py-2 text-sm text-black/50"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rounded-full border-2 border-black/20 bg-white" />Wait until {st.waitUntil.days} days after the {st.waitUntil.from === "order.fulfil_date" ? "pickup / delivery date" : "order"}{st.waitUntil.time ? ` (${st.waitUntil.time})` : ""}</li>);
+      else if (st.type === "time-delay") items.push(<li key={st.id} className="relative py-2 text-sm text-black/50"><span className="absolute -left-[31px] top-2.5 h-2.5 w-2.5 rounded-full border-2 border-black/20 bg-white" />{delayWords(st.delay)}</li>);
       else if ((st.type === "send-email" || st.type === "ab-test") && st.email) { emailNo++; items.push(<li key={st.id} className="relative py-2"><span className="absolute -left-[36px] top-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-white">{emailNo}</span><StepCard s={st} /></li>); }
       else if (st.type === "conditional-split" || st.type === "trigger-split") {
         const t = translate((st.condition as { profile_filter?: { condition_groups?: [] } })?.profile_filter);

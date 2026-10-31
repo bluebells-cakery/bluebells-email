@@ -34,22 +34,28 @@ export async function pollOrders(log?: (s: string) => void) {
   const pp = await flowId("Post Purchase"), wb = await flowId("Customer Winback");
   let cursor: string | null = null, n = 0, newest = since;
   do {
-    const d: { orders: { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: { id: string; email: string | null; createdAt: string; cancelledAt: string | null; name: string; currentTotalPriceSet: { shopMoney: { amount: string } }; customer: { firstName: string | null; lastName: string | null; emailMarketingConsent: { marketingState: string } | null } | null; lineItems: { nodes: { title: string; quantity: number }[] } }[] } } =
+    const d: { orders: { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: { id: string; email: string | null; createdAt: string; cancelledAt: string | null; name: string; currentTotalPriceSet: { shopMoney: { amount: string } }; customer: { firstName: string | null; lastName: string | null; emailMarketingConsent: { marketingState: string } | null } | null; tags: string[]; customAttributes: { key: string; value: string }[]; lineItems: { nodes: { title: string; quantity: number; image: { url: string } | null; product: { handle: string; title: string } | null }[] } }[] } } =
       await shopifyGraphql(`query($cursor: String, $q: String) { orders(first: 50, after: $cursor, query: $q, sortKey: CREATED_AT) { pageInfo { hasNextPage endCursor }
-        nodes { id email name createdAt cancelledAt currentTotalPriceSet { shopMoney { amount } } customer { firstName lastName emailMarketingConsent { marketingState } } lineItems(first: 20) { nodes { title quantity } } } } }`, { cursor, q: `created_at:>'${since}'` });
+        nodes { id email name createdAt cancelledAt currentTotalPriceSet { shopMoney { amount } } customer { firstName lastName emailMarketingConsent { marketingState } } tags customAttributes { key value } lineItems(first: 20) { nodes { title quantity image { url } product { handle title } } } } } }`, { cursor, q: `created_at:>'${since}'` });
     for (const o of d.orders.nodes) {
       if (o.createdAt > newest) newest = o.createdAt;
       if (!o.email || o.cancelledAt) continue;
       const c = await contactByEmail(o.email, o.customer?.firstName, o.customer?.lastName);
       if (o.customer?.emailMarketingConsent?.marketingState === "SUBSCRIBED" && c.status === "never_subscribed") await sql`update contacts set status='subscribed', consent_source='shopify', consent_at=now() where id=${c.id}`;
-      const [ins] = await sql`insert into orders (shopify_order_id, contact_id, email, total, placed_at, first_name, line_items)
-        values (${gid(o.id)}, ${c.id}, ${o.email.toLowerCase()}, ${Number(o.currentTotalPriceSet.shopMoney.amount)}, ${o.createdAt}, ${o.customer?.firstName ?? null}, ${JSON.stringify(o.lineItems.nodes)}::jsonb)
-        on conflict (shopify_order_id) do update set contact_id = coalesce(orders.contact_id, excluded.contact_id) returning (xmax = 0) as inserted`;
+      const attr = (k: string) => o.customAttributes?.find(a => a.key === k)?.value;
+      const tagDate = o.tags?.find(t => /^\d{2}\/\d{2}\/\d{4}$/.test(t));
+      const attrDate = attr("Delivery-Date") ?? attr("Pickup-Date");
+      const fulfil = tagDate ? tagDate.split("/").reverse().join("-") : attrDate ? attrDate.replace(/\//g, "-") : null;
+      const method = (attr("Checkout-Method") ?? (o.tags?.includes("Pickup Order") ? "pickup" : o.tags?.includes("Delivery Order") ? "delivery" : null));
+      const items = o.lineItems.nodes.map(li => ({ title: li.product?.title ?? li.title, variant: li.title, quantity: li.quantity, handle: li.product?.handle ?? null, image: li.image?.url ?? null }));
+      const [ins] = await sql`insert into orders (shopify_order_id, contact_id, email, total, placed_at, first_name, line_items, fulfil_date, method)
+        values (${gid(o.id)}, ${c.id}, ${o.email.toLowerCase()}, ${Number(o.currentTotalPriceSet.shopMoney.amount)}, ${o.createdAt}, ${o.customer?.firstName ?? null}, ${JSON.stringify(items)}::jsonb, ${fulfil}, ${method})
+        on conflict (shopify_order_id) do update set contact_id = coalesce(orders.contact_id, excluded.contact_id), fulfil_date = coalesce(excluded.fulfil_date, orders.fulfil_date), line_items = coalesce(excluded.line_items, orders.line_items) returning (xmax = 0) as inserted`;
       await sql`update contacts set last_order_at = greatest(coalesce(last_order_at, '1970-01-01'), ${o.createdAt}::timestamptz), order_count = (select count(*) from orders where contact_id = ${c.id}), total_spent = (select coalesce(sum(total),0) from orders where contact_id = ${c.id}), updated_at = now() where id = ${c.id}`;
       await sql`update checkouts set completed_at = ${o.createdAt}::timestamptz, recovered = exists(select 1 from send_queue q join flow_runs r on r.id = q.flow_run_id where r.contact_id = ${c.id} and q.status = 'sent' and q.sent_at > now() - interval '5 days') where contact_id = ${c.id} and completed_at is null`;
       await sql`update flow_runs r set status = 'cancelled', finished_at = now() from flows f where f.id = r.flow_id and f.name like 'Abandoned Cart%' and r.contact_id = ${c.id} and r.status = 'active'`;
       if (ins?.inserted) {
-        const ctx = { order: { name: o.name } };
+        const ctx = { order: { name: o.name, fulfil_date: fulfil, method, line_items: items } };
         if (pp) await startFlow(pp, c.id, `order:${gid(o.id)}`, ctx);
         if (wb) await startFlow(wb, c.id, `order:${gid(o.id)}`, ctx);
         n++;
