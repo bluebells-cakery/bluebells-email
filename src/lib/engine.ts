@@ -18,8 +18,7 @@ async function evalFilter(filter: { condition_groups?: [] } | null | undefined, 
   if (!filter?.condition_groups?.length) return true;
   const t = translate(filter);
   if (!t.sql) return true; // unsupported → don't block
-  let where = t.sql;
-  if (since) where = where.replace(/\(select count\(\*\) from orders o where o\.contact_id = c\.id \)/g, `(select count(*) from orders o where o.contact_id = c.id and o.placed_at >= '${since.toISOString()}')`);
+  const where = t.sql.replace(/FLOWSTART/g, `'${(since ?? new Date()).toISOString()}'`);
   const r = await sql.query(`select 1 from contacts c where c.id = $1 and (${where}) limit 1`, [contactId]);
   return r.length > 0;
 }
@@ -30,7 +29,7 @@ export async function startFlow(flowId: number, contactId: number, triggerRef: s
   const def = f.definition as Def;
   const [c] = await sql`select status from contacts where id = ${contactId}`;
   if (!c || c.status !== "subscribed") return null;
-  if (!(await evalFilter(def.profileFilter, contactId, null))) return null;
+  if (!(await evalFilter(def.profileFilter, contactId, new Date()))) return null; // "since flow start" = now
   try {
     const [run] = await sql`insert into flow_runs (flow_id, contact_id, step_id, trigger_ref, next_at, status, context)
       values (${flowId}, ${contactId}, ${def.entry}, ${triggerRef}, now(), 'active', ${JSON.stringify(context)}::jsonb)

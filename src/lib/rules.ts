@@ -8,17 +8,17 @@ const OPS: Record<string, string> = { "greater-than": ">", "greater-than-or-equa
 const OPW: Record<string, string> = { "greater-than": "more than", "greater-than-or-equal": "at least", "less-than": "fewer than", "less-than-or-equal": "at most", equals: "exactly", "not-equals": "not" };
 
 const METRIC_SQL: Record<string, (tf: string) => string> = {
-  "Placed Order": tf => `(select count(*) from orders o where o.contact_id = c.id ${tf ? `and o.placed_at ${tf}` : ""})`,
-  "Opened Email": tf => `(select count(*) from events e where e.contact_id = c.id and e.type = 'open' ${tf ? `and e.occurred_at ${tf}` : ""})`,
-  "Clicked Email": tf => `(select count(*) from events e where e.contact_id = c.id and e.type = 'click' ${tf ? `and e.occurred_at ${tf}` : ""})`,
-  "Received Email": tf => `(select count(*) from events e where e.contact_id = c.id and e.type in ('sent','delivered','open','click') ${tf ? `and e.occurred_at ${tf}` : ""})`,
-  "Checkout Started": tf => `(select count(*) from events e where e.contact_id = c.id and e.type = 'checkout_started' ${tf ? `and e.occurred_at ${tf}` : ""})`,
+  "Placed Order": tf => tf === "FLOWSTART" ? `(select count(*) from orders o where o.contact_id = c.id and o.placed_at > FLOWSTART)` : `(select count(*) from orders o where o.contact_id = c.id ${tf ? `and o.placed_at ${tf}` : ""})`,
+  "Opened Email": tf => `(select count(*) from events e where e.contact_id = c.id and e.type = 'open' ${tf && tf !== "FLOWSTART" ? `and e.occurred_at ${tf}` : ""})`,
+  "Clicked Email": tf => `(select count(*) from events e where e.contact_id = c.id and e.type = 'click' ${tf && tf !== "FLOWSTART" ? `and e.occurred_at ${tf}` : ""})`,
+  "Received Email": tf => `(select count(*) from events e where e.contact_id = c.id and e.type in ('sent','delivered','open','click') ${tf && tf !== "FLOWSTART" ? `and e.occurred_at ${tf}` : ""})`,
+  "Checkout Started": tf => `(select count(*) from events e where e.contact_id = c.id and e.type = 'checkout_started' ${tf && tf !== "FLOWSTART" ? `and e.occurred_at ${tf}` : ""})`,
 };
 
 function timeframe(tf: Cond | null | undefined): { sql: string; words: string } {
   if (!tf || tf.operator === "alltime") return { sql: "", words: "ever" };
   if (tf.operator === "in-the-last") return { sql: `>= now() - interval '${Number(tf.quantity)} ${tf.unit}'`, words: `in the last ${tf.quantity} ${tf.unit}${tf.quantity === 1 ? "" : "s"}` };
-  if (tf.operator === "flow-start") return { sql: "", words: "since the flow started" };
+  if (tf.operator === "flow-start") return { sql: "FLOWSTART", words: "since the flow started" };
   return { sql: "", words: tf.operator };
 }
 
