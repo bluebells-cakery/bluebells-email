@@ -14,7 +14,9 @@ export async function POST(req: NextRequest) {
   const token = "test-" + randomBytes(6).toString("hex");
   const html = instrument(renderTemplate(t.html, { first_name: "Ryan", email: to, token, unsubscribe_url: "https://edm.bluebellscakery.co.nz/u/test",
     checkout: { url: `${SITE_URL}/cart`, line_items: [{ title: "20CM Classic Cake - Chocolate & Salted Caramel", quantity: 1, line_price: "89.00", image: `${SITE_URL}/cdn/shop/files/cake_image_2.png`, handle: "classic-cake" }] },
-    order: { name: "#TEST" }, products: [] }), token);
+    order: { name: "#TEST", fulfil_date: null, line_items: [
+      { title: "20CM Classic Cake - Chocolate & Salted Caramel", quantity: 1, handle: "classic-cake-chocolate-salted-caramel", image: `${SITE_URL}/cdn/shop/files/cake_image_2.png` },
+      { title: "Macarons - 12 Pack (GF)", quantity: 1, handle: "macarons-12-pack-gf", image: "https://cdn.shopify.com/s/files/1/0884/4436/files/07092617812_7bcc799c-cbe0-42fe-9ee2-ef647c0a3bb2.jpg" }] }, products: [] }), token);
   try {
     const id = await sendEmail({ to, subject: `[TEST] ${subject ?? t.subject ?? "Bluebells"}`, html, text: textVersion(html), fromName: t.from_name ?? "Bluebells Cakery", replyTo: "orders@bluebellscakery.co.nz" });
     return NextResponse.json({ ok: true, id });
