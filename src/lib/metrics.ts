@@ -48,16 +48,24 @@ export async function byFlow(days: Period) {
 
 export async function byCampaign(days: Period) {
   const iv = `${days} days`;
-  return sql`select c.id, c.name, c.subject, c.sent_at, c.recipient_count,
+  const rows = await sql`select c.id, c.name, c.subject, c.sent_at, c.recipient_count, c.source, c.klaviyo_stats,
       count(q.id) filter (where q.status='sent')::int as sent,
       count(distinct e_o.send_id)::int as opened, count(distinct e_c.send_id)::int as clicked,
+      count(distinct e_u.id)::int as unsubscribes,
       coalesce(sum(o.total),0)::float as revenue, count(distinct o.id)::int as orders
     from campaigns c
     left join send_queue q on q.campaign_id = c.id
     left join events e_o on e_o.send_id = q.id and e_o.type='open' and e_o.source='app'
     left join events e_c on e_c.send_id = q.id and e_c.type='click' and e_c.source='app'
+    left join events e_u on e_u.campaign_id = c.id and e_u.type='unsubscribe'
     left join orders o on o.attributed_send_id = q.id
-    where c.sent_at > now() - ${iv}::interval group by c.id order by c.sent_at desc`;
+    where c.status = 'sent' and c.sent_at > now() - ${iv}::interval group by c.id order by c.sent_at desc`;
+  // Klaviyo-era campaigns carry their stats from Klaviyo's reporting API
+  return rows.map(r => {
+    const k = r.klaviyo_stats as Record<string, number> | null;
+    if (r.source === "klaviyo" && k) return { ...r, sent: k.recipients ?? r.recipient_count ?? 0, opened: k.opens_unique ?? Math.round((k.open_rate ?? 0) * (k.recipients ?? 0)), clicked: k.clicks_unique ?? Math.round((k.click_rate ?? 0) * (k.recipients ?? 0)), unsubscribes: k.unsubscribes ?? 0, revenue: k.conversion_value ?? 0, orders: k.conversions ?? 0 };
+    return r;
+  });
 }
 
 export async function daily(days: Period) {
