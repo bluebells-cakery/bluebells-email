@@ -6,7 +6,7 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-export const metadata: Metadata = { title: "Bluebells EDM", description: "Bluebells Cakery email marketing" };
+export const metadata: Metadata = { title: "Bluebells EDM", description: "Bluebells Cakery email marketing", icons: { icon: "/icon.png", apple: "/apple-icon.png" }, manifest: "/manifest.webmanifest" };
 
 const nav = [
   ["/dashboard", "Dashboard"],
