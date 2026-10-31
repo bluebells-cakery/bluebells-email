@@ -32,6 +32,7 @@ export function FormEditor({ form, appUrl }: { form: F; appUrl: string }) {
           <section className="space-y-3 rounded-lg border border-black/10 bg-white p-4"><h2 className="font-medium">Look</h2>
             <div className="flex items-center gap-3 text-sm"><button onClick={() => setPick(true)} className="rounded border border-black/15 px-3 py-1.5">{c.image ? "Change image" : "Add image…"}</button>{c.image && <button onClick={() => set("image", null)} className="text-xs text-black/50">remove</button>}
               <select value={c.imageSide} onChange={e => set("imageSide", e.target.value)} className="rounded border border-black/10 px-2 py-1"><option value="left">Image left</option><option value="top">Image top</option><option value="none">No image</option></select></div>
+            <label className="block text-sm">Image zoom <input type="range" min={1} max={2} step={0.05} value={c.imageZoom ?? 1} onChange={e => set("imageZoom", Number(e.target.value))} /> {(c.imageZoom ?? 1).toFixed(2)}×</label>
             <Col k="bg" l="Background" /><Col k="text" l="Text" /><Col k="buttonBg" l="Button" /><Col k="buttonText" l="Button text" />
             <label className="block text-sm">Corner radius <input type="range" min={0} max={32} value={c.radius} onChange={e => set("radius", Number(e.target.value))} /> {c.radius}px</label></section>
           <section className="space-y-3 rounded-lg border border-black/10 bg-white p-4"><h2 className="font-medium">Behaviour</h2>
