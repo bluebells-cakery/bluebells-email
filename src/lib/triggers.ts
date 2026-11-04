@@ -2,7 +2,6 @@ import { SITE_URL } from "@/lib/site";
 import { sql } from "@/lib/db";
 import { shopifyGraphql } from "@/lib/shopify";
 import { startFlow } from "@/lib/engine";
-import { kget } from "@/lib/sync/klaviyo-templates";
 import { getSetting } from "@/lib/settings";
 
 const gid = (g: string) => Number(g.split("/").pop());
@@ -96,27 +95,32 @@ export async function pollCheckouts(log?: (s: string) => void) {
   return n;
 }
 
-/** New subscribers: Klaviyo "Subscribed to Email Marketing" + form submissions since last tick (forms still live on the site) → start New Welcome Flow. */
+/** New subscribers straight from Shopify: customers whose email-marketing consent changed since last tick.
+ *  SUBSCRIBED (checkout tick-box, account signup, POS) → subscribe + start New Welcome Flow; UNSUBSCRIBED → mark unsubscribed.
+ *  Our own popup form feeds contacts directly via /api/forms/[id]/submit. */
 export async function pollSubscribers(log?: (s: string) => void) {
   const since = await state("subs_since", new Date(Date.now() - 3600e3).toISOString());
   const wf = await flowId("New Welcome Flow");
-  let n = 0, newest = since;
-  for (const metric of ["UFh4eM", "RTHDqC"]) { // Subscribed to Email Marketing, Form submitted
-    let url: string | null = `https://a.klaviyo.com/api/events?filter=equals(metric_id,"${metric}"),greater-than(datetime,${since})&sort=datetime&page[size]=100&include=profile&fields[profile]=email,first_name,last_name`;
-    while (url) {
-      const page = await kget(url) as { data: { attributes: { datetime: string }; relationships: { profile: { data: { id: string } } } }[]; included?: { id: string; attributes: { email: string; first_name: string | null; last_name: string | null } }[]; links?: { next?: string } };
-      const prof = new Map((page.included ?? []).map(p => [p.id, p.attributes]));
-      for (const e of page.data) {
-        if (e.attributes.datetime > newest) newest = e.attributes.datetime;
-        const p = prof.get(e.relationships.profile.data.id); if (!p?.email) continue;
-        const c = await contactByEmail(p.email, p.first_name, p.last_name);
-        if (c.status === "never_subscribed" || c.status === "unsubscribed") await sql`update contacts set status = 'subscribed', consent_source = 'klaviyo:form', consent_at = ${e.attributes.datetime}::timestamptz, updated_at = now() where id = ${c.id} and status <> 'suppressed'`;
-        if (wf && await startFlow(wf, c.id, `signup:${p.email.toLowerCase()}`)) n++;
+  let cursor: string | null = null, n = 0, un = 0, newest = since;
+  do {
+    const d: { customers: { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: { email: string | null; firstName: string | null; lastName: string | null; updatedAt: string; emailMarketingConsent: { marketingState: string; consentUpdatedAt: string | null } | null }[] } } =
+      await shopifyGraphql(`query($cursor: String, $q: String) { customers(first: 100, after: $cursor, query: $q, sortKey: UPDATED_AT) { pageInfo { hasNextPage endCursor }
+        nodes { email firstName lastName updatedAt emailMarketingConsent { marketingState consentUpdatedAt } } } }`, { cursor, q: `updated_at:>'${since}'` });
+    for (const cu of d.customers.nodes) {
+      if (cu.updatedAt > newest) newest = cu.updatedAt;
+      const consent = cu.emailMarketingConsent; const at = consent?.consentUpdatedAt;
+      if (!cu.email || !consent || !at || at <= since) continue;
+      const c = await contactByEmail(cu.email, cu.firstName, cu.lastName);
+      if (consent.marketingState === "SUBSCRIBED") {
+        if (c.status === "never_subscribed" || c.status === "unsubscribed") await sql`update contacts set status = 'subscribed', consent_source = 'shopify', consent_at = ${at}::timestamptz, updated_at = now() where id = ${c.id} and status <> 'suppressed'`;
+        if (wf && await startFlow(wf, c.id, `signup:${cu.email.toLowerCase()}`)) n++;
+      } else if (consent.marketingState === "UNSUBSCRIBED" && c.status === "subscribed") {
+        await sql`update contacts set status = 'unsubscribed', updated_at = now() where id = ${c.id}`; un++;
       }
-      url = page.links?.next ?? null;
     }
-  }
+    cursor = d.customers.pageInfo.hasNextPage ? d.customers.pageInfo.endCursor : null;
+  } while (cursor);
   await setState("subs_since", newest);
-  log?.(`subscribers: ${n} welcome flows started`);
+  log?.(`subscribers: ${n} welcome flows started, ${un} unsubscribed`);
   return n;
 }
