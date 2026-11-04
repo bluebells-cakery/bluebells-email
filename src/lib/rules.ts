@@ -56,6 +56,15 @@ export function condition(c: Cond): { words: string; sql: string | null; support
       if (c.dimension === "average_order_value") return { words: `average order value ${OPW[f.operator] ?? f.operator} $${f.value}`, sql: `(case when c.order_count > 0 then c.total_spent / c.order_count else 0 end) ${OPS[f.operator] ?? ">"} ${Number(f.value)}`, supported: true };
       return { words: `${c.dimension} ${f.operator} ${f.value}`, sql: null, supported: false };
     }
+    case "profile-tag": {
+      const tag = String(c.tag ?? "").replace(/'/g, "''");
+      return { words: `${c.has === false ? "does not have" : "has"} tag "${c.tag}"`, sql: `${c.has === false ? "not " : ""}('${tag}' = any(c.tags))`, supported: !!tag };
+    }
+    case "profile-email-domain": {
+      const doms: string[] = (Array.isArray(c.domains) ? c.domains : []).map((d: string) => d.trim().toLowerCase().replace(/'/g, "''")).filter(Boolean);
+      const list = doms.map(d => `'${d}'`).join(",");
+      return { words: `${c.exclude ? "email domain is not one of" : "email domain is one of"} ${doms.slice(0, 5).join(", ")}${doms.length > 5 ? "…" : ""}`, sql: `${c.exclude ? "not " : ""}(lower(split_part(c.email, '@', 2)) in (${list}))`, supported: doms.length > 0 };
+    }
     case "profile-not-in-flow": { const tf = timeframe(c.timeframe_filter); return { words: `has not been in this flow ${tf.words}`, sql: "true", supported: true }; }
     case "profile-in-segment": case "profile-group-membership": return { words: `is in segment/list ${c.group_ids ?? c.segment_id ?? ""}`, sql: null, supported: false };
     default: return { words: JSON.stringify(c), sql: null, supported: false };
