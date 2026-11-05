@@ -15,7 +15,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     design = coalesce(${design ? JSON.stringify(design) : null}::jsonb, design),
     html = coalesce(${html ?? null}, html),
     updated_at = now() where id = ${id}`;
-  return NextResponse.json({ ok: true });
+  // Keep unsent campaigns built on this template in sync with its latest HTML.
+  let synced = 0;
+  if (html) synced = (await sql`update campaigns set html = ${html}, design = ${design ? JSON.stringify(design) : null}::jsonb, updated_at = now() where template_id = ${id} and status in ('draft','scheduled') returning id`).length;
+  return NextResponse.json({ ok: true, synced });
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
