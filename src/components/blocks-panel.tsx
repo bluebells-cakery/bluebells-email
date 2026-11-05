@@ -18,7 +18,7 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
   const [q, setQ] = useState(""); const [results, setResults] = useState<Product[]>([]); const [picked, setPicked] = useState<Product[]>([]);
   const [cardBg, setCardBg] = useState("#ffffff"); const [rowBg, setRowBg] = useState("#fffdf8"); const [btn, setBtn] = useState("Order now");
   const [rounded, setRounded] = useState(true); const [radius, setRadius] = useState(16); const [maxW, setMaxW] = useState(520);
-  const [photo, setPhoto] = useState<{ url: string; w: number; h: number } | null>(null); const [uploading, setUploading] = useState(false); const [link, setLink] = useState("");
+  const [photo, setPhoto] = useState<{ url: string; w: number; h: number } | null>(null); const [uploading, setUploading] = useState(false); const [link, setLink] = useState(""); const [upErr, setUpErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   const waveSvg = (w: number, h: number) =>
@@ -66,9 +66,19 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
           </div>
           {rounded ? (<>
             <label className="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-black/15 px-3 py-6 text-center text-xs hover:border-brand">
-              <input type="file" accept="image/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setUploading(true); const fd = new FormData(); fd.append("files", f); fd.append("folder", "uploads"); const r = await fetch("/api/media", { method: "POST", body: fd }); const j = await r.json(); const m = j.items?.[0]; setUploading(false); if (m?.url) setPhoto({ url: m.url, w: m.width ?? 1200, h: m.height ?? 800 }); }} />
+              <input type="file" accept="image/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setUploading(true); setUpErr("");
+                try {
+                  if (f.size > 4 * 1024 * 1024) throw new Error("Image is over 4 MB — please resize it first");
+                  const fd = new FormData(); fd.append("files", f); fd.append("folder", "uploads");
+                  const r = await fetch("/api/media", { method: "POST", body: fd });
+                  if (!r.ok) throw new Error(`Upload failed (${r.status}): ${(await r.text()).slice(0, 120)}`);
+                  const j = await r.json(); const m = j.items?.[0];
+                  if (!m?.url) throw new Error("Upload returned no image URL");
+                  setPhoto({ url: m.url, w: m.width ?? 1200, h: m.height ?? 800 });
+                } catch (err) { setUpErr((err as Error).message); } finally { setUploading(false); e.target.value = ""; } }} />
               {uploading ? "Uploading…" : photo ? <img src={photo.url} alt="" className="max-h-28 rounded object-contain" style={{ borderRadius: radius / 2 }} /> : <><span className="font-medium">Upload a photo</span><span className="text-black/50">JPG / PNG, ideally 1200px wide</span></>}
             </label>
+            {upErr && <div className="text-xs text-red-600">{upErr}</div>}
             <input value={photo?.url ?? ""} onChange={e => setPhoto(e.target.value ? { url: e.target.value, w: 1200, h: 800 } : null)} placeholder="…or paste an image URL" className="w-full rounded border border-black/10 px-2 py-1 text-xs" />
             <div className="flex items-center gap-2 text-xs"><span>Corners</span><input type="range" min={0} max={40} value={radius} onChange={e => setRadius(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{radius}px</span></div>
             <div className="flex items-center gap-2 text-xs"><span>Width</span><input type="range" min={200} max={600} step={20} value={maxW} onChange={e => setMaxW(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{maxW}px</span></div>
