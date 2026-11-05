@@ -17,7 +17,8 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
   const [flip, setFlip] = useState(false);
   const [q, setQ] = useState(""); const [results, setResults] = useState<Product[]>([]); const [picked, setPicked] = useState<Product[]>([]);
   const [cardBg, setCardBg] = useState("#ffffff"); const [rowBg, setRowBg] = useState("#fffdf8"); const [btn, setBtn] = useState("Order now");
-  const [rounded, setRounded] = useState(false); const [radius, setRadius] = useState(16);
+  const [rounded, setRounded] = useState(true); const [radius, setRadius] = useState(16); const [maxW, setMaxW] = useState(520);
+  const [photo, setPhoto] = useState<{ url: string; w: number; h: number } | null>(null); const [uploading, setUploading] = useState(false); const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
 
   const waveSvg = (w: number, h: number) =>
@@ -58,17 +59,26 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
           <Pick v={cardBg} set={setCardBg} label="Card" /><Pick v={rowBg} set={setRowBg} label="Row" />
           <button disabled={!picked.length} onClick={() => { onInsert([productRow(picked, { cardBg, bg: rowBg, buttonText: btn })]); setPicked([]); }} className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">Insert {picked.length || ""} product card{picked.length === 1 ? "" : "s"}</button>
         </div>)}
-        {tab === "image" && (<div className="flex h-[60vh] flex-col">
-          <div className="mb-2 flex items-center gap-3 text-xs">
-            <label className="flex items-center gap-1"><input type="radio" checked={!rounded} onChange={() => setRounded(false)} /> Badge / sticker</label>
-            <label className="flex items-center gap-1"><input type="radio" checked={rounded} onChange={() => setRounded(true)} /> Photo with soft corners</label>
+        {tab === "image" && (<div className="space-y-3">
+          <div className="flex gap-2 text-xs">
+            <button onClick={() => setRounded(true)} className={`rounded-md border px-2 py-1 ${rounded ? "border-brand text-brand" : "border-black/15"}`}>Photo</button>
+            <button onClick={() => setRounded(false)} className={`rounded-md border px-2 py-1 ${!rounded ? "border-brand text-brand" : "border-black/15"}`}>Badge / sticker from library</button>
           </div>
-          {rounded && <div className="mb-2 flex items-center gap-2 text-xs"><span>Corner radius</span><input type="range" min={4} max={40} value={radius} onChange={e => setRadius(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{radius}px</span>
-            <div className="h-8 w-12 bg-brand/60" style={{ borderRadius: radius / 2 }} /></div>}
-          <p className="mb-2 text-xs text-black/50">{rounded ? "Pick a photo — inserted full-width with rounded corners (Outlook desktop shows square corners)." : "Pick a badge/sticker/image from the library — it's inserted as a centred row (make badges on the Brand page first)."}</p>
-          <div className="min-h-0 flex-1 overflow-hidden rounded border border-black/10"><MediaLibrary compact onSelect={(m: MediaItem) => onInsert([rounded
-            ? roundedImageRow(m.url, m.width ?? 600, m.height ?? 600, { radius })
-            : imageRow(m.url, m.width ?? 600, m.height ?? 600, { maxWidth: Math.min(m.width ?? 600, 300) })])} /></div>
+          {rounded ? (<>
+            <label className="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-black/15 px-3 py-6 text-center text-xs hover:border-brand">
+              <input type="file" accept="image/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setUploading(true); const fd = new FormData(); fd.append("files", f); fd.append("folder", "uploads"); const r = await fetch("/api/media", { method: "POST", body: fd }); const j = await r.json(); const m = j.items?.[0]; setUploading(false); if (m?.url) setPhoto({ url: m.url, w: m.width ?? 1200, h: m.height ?? 800 }); }} />
+              {uploading ? "Uploading…" : photo ? <img src={photo.url} alt="" className="max-h-28 rounded object-contain" style={{ borderRadius: radius / 2 }} /> : <><span className="font-medium">Upload a photo</span><span className="text-black/50">JPG / PNG, ideally 1200px wide</span></>}
+            </label>
+            <input value={photo?.url ?? ""} onChange={e => setPhoto(e.target.value ? { url: e.target.value, w: 1200, h: 800 } : null)} placeholder="…or paste an image URL" className="w-full rounded border border-black/10 px-2 py-1 text-xs" />
+            <div className="flex items-center gap-2 text-xs"><span>Corners</span><input type="range" min={0} max={40} value={radius} onChange={e => setRadius(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{radius}px</span></div>
+            <div className="flex items-center gap-2 text-xs"><span>Width</span><input type="range" min={200} max={600} step={20} value={maxW} onChange={e => setMaxW(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{maxW}px</span></div>
+            <input value={link} onChange={e => setLink(e.target.value)} placeholder="Link (optional)" className="w-full rounded border border-black/10 px-2 py-1 text-xs" />
+            <button disabled={!photo} onClick={() => photo && onInsert([roundedImageRow(photo.url, photo.w, photo.h, { radius, maxWidth: maxW, href: link || undefined })])} className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">Insert photo</button>
+            <p className="text-xs text-black/50">Inserted as a new row at the bottom — drag it into place. Outlook desktop shows square corners.</p>
+          </>) : (<div className="flex h-[50vh] flex-col">
+            <p className="mb-2 text-xs text-black/50">Pick a badge/sticker from the library — inserted as a centred row (make badges on the Brand page first).</p>
+            <div className="min-h-0 flex-1 overflow-hidden rounded border border-black/10"><MediaLibrary compact onSelect={(m: MediaItem) => onInsert([imageRow(m.url, m.width ?? 600, m.height ?? 600, { maxWidth: Math.min(m.width ?? 600, 300) })])} /></div>
+          </div>)}
         </div>)}
         {tab === "footer" && (<div className="space-y-3">
           <p className="text-xs text-black/60">Standard footer with the three stores, website link, unsubscribe link and business address (required for compliance).</p>
