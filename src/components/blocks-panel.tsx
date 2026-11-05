@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { MediaLibrary, type MediaItem } from "@/components/media-library";
 import { brand } from "@/lib/brand";
-import { waveRow, productRow, imageRow, footerRow, type Product } from "@/lib/blocks";
+import { waveRow, productRow, imageRow, roundedImageRow, footerRow, type Product } from "@/lib/blocks";
 
 type Row = Record<string, unknown>;
 const SW = ["#fbe7e6", "#fcd1bd", "#fff9ea", "#e4c5e0", "#c0e6ef", "#262967", "#fffdf8", "#ffffff"];
@@ -17,6 +17,7 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
   const [flip, setFlip] = useState(false);
   const [q, setQ] = useState(""); const [results, setResults] = useState<Product[]>([]); const [picked, setPicked] = useState<Product[]>([]);
   const [cardBg, setCardBg] = useState("#ffffff"); const [rowBg, setRowBg] = useState("#fffdf8"); const [btn, setBtn] = useState("Order now");
+  const [rounded, setRounded] = useState(false); const [radius, setRadius] = useState(16);
   const [busy, setBusy] = useState(false);
 
   const waveSvg = (w: number, h: number) =>
@@ -58,8 +59,16 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
           <button disabled={!picked.length} onClick={() => { onInsert([productRow(picked, { cardBg, bg: rowBg, buttonText: btn })]); setPicked([]); }} className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">Insert {picked.length || ""} product card{picked.length === 1 ? "" : "s"}</button>
         </div>)}
         {tab === "image" && (<div className="flex h-[60vh] flex-col">
-          <p className="mb-2 text-xs text-black/50">Pick a badge/sticker/image from the library — it's inserted as a centred row (make badges on the Brand page first).</p>
-          <div className="min-h-0 flex-1 overflow-hidden rounded border border-black/10"><MediaLibrary compact onSelect={(m: MediaItem) => onInsert([imageRow(m.url, m.width ?? 600, m.height ?? 600, { maxWidth: Math.min(m.width ?? 600, 300) })])} /></div>
+          <div className="mb-2 flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1"><input type="radio" checked={!rounded} onChange={() => setRounded(false)} /> Badge / sticker</label>
+            <label className="flex items-center gap-1"><input type="radio" checked={rounded} onChange={() => setRounded(true)} /> Photo with soft corners</label>
+          </div>
+          {rounded && <div className="mb-2 flex items-center gap-2 text-xs"><span>Corner radius</span><input type="range" min={4} max={40} value={radius} onChange={e => setRadius(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{radius}px</span>
+            <div className="h-8 w-12 bg-brand/60" style={{ borderRadius: radius / 2 }} /></div>}
+          <p className="mb-2 text-xs text-black/50">{rounded ? "Pick a photo — inserted full-width with rounded corners (Outlook desktop shows square corners)." : "Pick a badge/sticker/image from the library — it's inserted as a centred row (make badges on the Brand page first)."}</p>
+          <div className="min-h-0 flex-1 overflow-hidden rounded border border-black/10"><MediaLibrary compact onSelect={(m: MediaItem) => onInsert([rounded
+            ? roundedImageRow(m.url, m.width ?? 600, m.height ?? 600, { radius })
+            : imageRow(m.url, m.width ?? 600, m.height ?? 600, { maxWidth: Math.min(m.width ?? 600, 300) })])} /></div>
         </div>)}
         {tab === "footer" && (<div className="space-y-3">
           <p className="text-xs text-black/60">Standard footer with the three stores, website link, unsubscribe link and business address (required for compliance).</p>

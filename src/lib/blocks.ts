@@ -63,6 +63,14 @@ export const imageRow = (url: string, width: number, height: number, opts: { hre
   return rowBase([col([img])], { backgroundColor: opts.bg ?? "" });
 };
 
+/** Photo with soft corners (Unlayer's image tool has no radius) — an HTML block; Outlook desktop shows square corners. */
+export const roundedImageRow = (url: string, width: number, height: number, opts: { radius?: number; maxWidth?: number; href?: string; bg?: string; padding?: string } = {}) => {
+  const r = opts.radius ?? 16, w = Math.min(width, opts.maxWidth ?? 520);
+  const img = `<img src="${url}" width="${w}" alt="" style="display:block;width:100%;max-width:${w}px;height:auto;border-radius:${r}px;-webkit-border-radius:${r}px;" />`;
+  const html = `<div style="text-align:center;font-size:0;line-height:0">${opts.href ? `<a href="${opts.href}" target="_blank" style="display:inline-block;max-width:${w}px;width:100%">${img}</a>` : `<div style="display:inline-block;max-width:${w}px;width:100%">${img}</div>`}</div>`;
+  return rowBase([col([{ type: "html", values: { containerPadding: opts.padding ?? "20px 40px", html, hideDesktop: false, hideMobile: false } }])], { backgroundColor: opts.bg ?? "" });
+};
+
 /** Standard footer: address, stores, unsubscribe. */
 export const footerRow = () => rowBase([col([
   text(`<p style="line-height: 150%;"><strong>Bluebells Cakery</strong><br>Kingsland · Commercial Bay · Auckland Airport<br><a href="${SITE_URL}" target="_blank" style="color:${NAVY};">${SITE_URL.replace("https://", "")}</a></p>`, { size: 12, padding: "20px 20px 6px" }),
