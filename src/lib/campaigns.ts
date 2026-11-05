@@ -22,13 +22,14 @@ export async function audienceCount(a: Audience) {
 }
 
 /** Renders + queues the campaign for every recipient. Runs in batches so it fits in a serverless call; call repeatedly until done. */
-export async function queueCampaign(campaignId: number, batch = 500): Promise<{ queued: number; done: boolean }> {
+export async function queueCampaign(campaignId: number, batch = 500, opts: { softLaunch?: boolean } = {}): Promise<{ queued: number; done: boolean }> {
   const [c] = await sql`select * from campaigns where id = ${campaignId}`;
-  if (!c || !["scheduled", "sending"].includes(c.status)) return { queued: 0, done: true };
+  // softLaunch: queue `batch` random recipients from a draft without changing its status; a later full send skips them (not-exists below).
+  if (!c || !(opts.softLaunch ? c.status === "draft" : ["scheduled", "sending"].includes(c.status))) return { queued: 0, done: true };
   if (!c.html) throw new Error("campaign has no HTML");
   const where = await audienceWhere(c.audience as Audience);
   const rows = await sql.query(`select c.id, c.email, c.first_name, c.unsubscribe_token from contacts c where ${where}
-    and not exists (select 1 from send_queue q where q.campaign_id = $1 and q.contact_id = c.id) order by c.id limit $2`, [campaignId, batch]);
+    and not exists (select 1 from send_queue q where q.campaign_id = $1 and q.contact_id = c.id) order by ${opts.softLaunch ? "random()" : "c.id"} limit $2`, [campaignId, batch]);
   if (c.status === "scheduled") await sql`update campaigns set status = 'sending', queued_at = now() where id = ${campaignId}`;
   const pools = couponPools(c.html);
   const values = [];
@@ -43,7 +44,7 @@ export async function queueCampaign(campaignId: number, batch = 500): Promise<{ 
     select contact_id, campaign_id, template_id, token, subject, preview_text, html, from_name, from_email, send_after::timestamptz, 'queued'
     from json_populate_recordset(null::send_queue, ${JSON.stringify(values)}::json)`;
   const done = rows.length < batch;
-  if (done) await sql`update campaigns set recipient_count = (select count(*) from send_queue where campaign_id = ${campaignId}) where id = ${campaignId}`;
+  if (done && !opts.softLaunch) await sql`update campaigns set recipient_count = (select count(*) from send_queue where campaign_id = ${campaignId}) where id = ${campaignId}`;
   return { queued: values.length, done };
 }
 
