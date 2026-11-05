@@ -75,9 +75,43 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
           </>)}
           {c.status === "scheduled" && (<><div className="mt-2">Scheduled for {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString("en-NZ") : "now"} · {c.recipient_count?.toLocaleString()} recipients</div><button onClick={() => act("cancel")} className="mt-3 w-full rounded-md border border-black/15 px-4 py-2">Cancel schedule</button></>)}
           {msg && <div className="mt-3 text-xs text-red-600">{msg}</div>}
+          <TestSend campaignId={c.id} disabled={!c.html} />
           <p className="mt-4 text-xs text-black/50">Sends respect the engine mode on the Flows page (shadow / test / live) and SES's hourly limits; big sends drain over a few minutes.</p>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function TestSend({ campaignId, disabled }: { campaignId: number; disabled: boolean }) {
+  const [saved, setSaved] = useState<string[]>([]); const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [extra, setExtra] = useState(""); const [adding, setAdding] = useState(""); const [state, setState] = useState<"" | "sending" | string>("");
+  useEffect(() => { fetch(`/api/campaigns/${campaignId}/test`).then(r => r.json()).then(j => { setSaved(j.saved ?? []); setPicked(new Set(j.saved ?? [])); }); }, [campaignId]);
+  const persist = async (list: string[]) => { setSaved(list); await fetch(`/api/campaigns/${campaignId}/test`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: [], saveAddresses: list.join(",") }) }).catch(() => {}); };
+  const toggle = (e: string) => { const n = new Set(picked); if (n.has(e)) n.delete(e); else n.add(e); setPicked(n); };
+  const send = async () => {
+    const to = [...picked, ...extra.split(/[,\s]+/).filter(Boolean)];
+    if (!to.length) { setState("Pick or enter at least one address"); return; }
+    setState("sending");
+    const r = await fetch(`/api/campaigns/${campaignId}/test`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to }) });
+    const j = await r.json();
+    setState(r.ok ? `Sent to ${j.results.filter((x: { error?: string }) => !x.error).length} address${to.length === 1 ? "" : "es"}` : (j.error ?? j.results?.find((x: { error?: string }) => x.error)?.error ?? "Failed"));
+  };
+  return (
+    <div className="mt-5 border-t border-black/10 pt-4">
+      <h3 className="font-medium">Send a test</h3>
+      <div className="mt-2 space-y-1">
+        {saved.map(e => <label key={e} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={picked.has(e)} onChange={() => toggle(e)} /><span className="flex-1 truncate">{e}</span><button title="Remove saved address" onClick={() => { const n = new Set(picked); n.delete(e); setPicked(n); persist(saved.filter(x => x !== e)); }} className="text-xs text-black/30 hover:text-red-600">×</button></label>)}
+        {!saved.length && <div className="text-xs text-black/40">No saved addresses yet.</div>}
+      </div>
+      <div className="mt-2 flex gap-1">
+        <input value={adding} onChange={e => setAdding(e.target.value)} placeholder="Save an address…" className="min-w-0 flex-1 rounded border border-black/10 px-2 py-1 text-xs" onKeyDown={e => { if (e.key === "Enter" && adding.includes("@")) { const v = adding.trim().toLowerCase(); if (!saved.includes(v)) { persist([...saved, v]); setPicked(new Set([...picked, v])); } setAdding(""); } }} />
+        <button onClick={() => { const v = adding.trim().toLowerCase(); if (v.includes("@") && !saved.includes(v)) { persist([...saved, v]); setPicked(new Set([...picked, v])); } setAdding(""); }} className="rounded border border-black/15 px-2 py-1 text-xs">Save</button>
+      </div>
+      <textarea value={extra} onChange={e => setExtra(e.target.value)} rows={2} placeholder="Additional addresses (comma separated, not saved)" className="mt-2 w-full rounded border border-black/10 px-2 py-1.5 text-xs" />
+      <button onClick={send} disabled={disabled || state === "sending"} className="mt-2 w-full rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40 disabled:opacity-40">{state === "sending" ? "Sending…" : "Send test email"}</button>
+      {state && state !== "sending" && <div className={`mt-2 text-xs ${state.startsWith("Sent") ? "text-green-700" : "text-red-600"}`}>{state}</div>}
+      <p className="mt-1 text-xs text-black/40">Subject gets a [TEST] prefix; coupon tags render as TEST10. Saved addresses are shared with the Flows test list.</p>
     </div>
   );
 }
