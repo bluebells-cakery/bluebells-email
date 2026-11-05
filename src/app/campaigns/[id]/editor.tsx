@@ -47,10 +47,10 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
                 <optgroup label="My templates">{templates.filter(t => t.kind === "unlayer").map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
                 <optgroup label="Past Klaviyo campaigns">{templates.filter(t => t.kind !== "unlayer").map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
               </select>
-              {c.template_id && <Link href={`/templates/${c.template_id}`} className="whitespace-nowrap text-sm text-brand hover:underline">Open in editor</Link>}
+              {c.template_id && <Link href={`/templates/${c.template_id}?campaign=${c.id}`} className="whitespace-nowrap text-sm text-brand hover:underline">Open in editor</Link>}
               {c.template_id && <a href={`/api/campaigns/${c.id}/preview`} target="_blank" className="whitespace-nowrap text-sm text-brand hover:underline">Preview</a>}
             </div>
-            <p className="mt-2 text-xs text-black/50">The template's HTML is copied into the campaign when you pick it — re-select it after editing to pull in changes.</p>
+            <p className="mt-2 text-xs text-black/50">Edits made via “Open in editor” are pulled into this campaign automatically when you save or go back.</p>
           </section>
           <section className="rounded-lg border border-black/10 bg-white p-5">
             <h2 className="font-medium">3. Audience</h2>
