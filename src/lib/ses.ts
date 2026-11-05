@@ -14,7 +14,16 @@ export type SendArgs = {
   tags?: Record<string, string>;
 };
 
-export async function sendEmail(a: SendArgs) {
+/** Provider switch: EMAIL_PROVIDER=resend | ses (default ses). */
+export async function sendEmail(a: SendArgs): Promise<string> {
+  if ((process.env.EMAIL_PROVIDER ?? "ses") === "resend") {
+    const { resendSend } = await import("@/lib/resend");
+    return resendSend(a);
+  }
+  return sesSend(a);
+}
+
+async function sesSend(a: SendArgs) {
   const fromEmail = a.fromEmail ?? process.env.SES_FROM_EMAIL!;
   const fromName = a.fromName ?? "Bluebells Cakery";
   const headers = a.unsubscribeUrl
