@@ -42,12 +42,14 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   };
   const back = () => save(() => { window.location.href = campaignId ? `/campaigns/${campaignId}` : "/templates"; });
 
-  const onReady: EmailEditorProps["onReady"] = (u) => {
-    if (design && Object.keys(design).length) u.loadDesign(design as never);
-    // Replace Unlayer's image picker with our media library
+  // Replace Unlayer's image picker with our media library — must be registered before editor:ready (onLoad), like Unlayer's own example.
+  const onLoad: EmailEditorProps["onLoad"] = (u) => {
     u.registerCallback("selectImage", (_data: unknown, done: (r: { url: string }) => void) => {
       setPicker(() => (url: string) => { done({ url }); setPicker(null); });
     });
+  };
+  const onReady: EmailEditorProps["onReady"] = (u) => {
+    if (design && Object.keys(design).length) u.loadDesign(design as never);
   };
 
   return (
@@ -63,7 +65,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
       </div>
       <div className="flex min-h-0 flex-1">
       <div className="min-h-0 flex-1">
-        <EmailEditor ref={ref} onReady={onReady} minHeight="100%"
+        <EmailEditor ref={ref} onLoad={onLoad} onReady={onReady} minHeight="100%"
           options={{
             projectId: Number(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID) || undefined,
             displayMode: "email",
