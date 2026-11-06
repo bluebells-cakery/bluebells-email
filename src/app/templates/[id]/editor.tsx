@@ -68,7 +68,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
             projectId: Number(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID) || undefined,
             displayMode: "email",
             appearance: { theme: "modern_light" },
-            features: { textEditor: { spellChecker: true }, colorPicker: { colors: brandColourGroups, recentColors: false } },
+            features: { textEditor: { spellChecker: true }, colorPicker: { colors: brandColourGroups, recentColors: false }, userUploads: false },
             fonts: {
               showDefaultFonts: false,
               customFonts: [
