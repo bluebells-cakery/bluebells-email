@@ -57,7 +57,8 @@ export function MediaLibrary({ onSelect, compact = false }: { onSelect?: (m: Med
           {items.length === 0 && <p className="text-sm text-black/50">No files — drop images here or click Upload.</p>}
           <ul className="grid grid-cols-3 gap-3 md:grid-cols-5 xl:grid-cols-6">
             {items.map(m => (
-              <li key={m.id}>
+              <li key={m.id} className="relative">
+                <button title="Copy image URL (paste into the editor's Image URL box)" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(m.url).then(() => { const b = e.currentTarget as HTMLButtonElement; b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy URL"; }, 1200); }); }} className="absolute right-1 top-1 z-10 rounded bg-white/90 px-1.5 py-0.5 text-[10px] shadow hover:bg-white">Copy URL</button>
                 <button onClick={() => onSelect?.(m)} className="group block w-full text-left">
                   <div className="aspect-square overflow-hidden rounded border border-black/10 bg-[linear-gradient(45deg,#eee_25%,transparent_25%,transparent_75%,#eee_75%),linear-gradient(45deg,#eee_25%,transparent_25%,transparent_75%,#eee_75%)] bg-[length:16px_16px] bg-[position:0_0,8px_8px] group-hover:border-brand">
                     <img src={m.url} alt={m.alt ?? ""} loading="lazy" className="h-full w-full object-contain" />

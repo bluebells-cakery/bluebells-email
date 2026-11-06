@@ -19,7 +19,7 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
   const [q, setQ] = useState(""); const [results, setResults] = useState<Product[]>([]); const [picked, setPicked] = useState<Product[]>([]);
   const [cardBg, setCardBg] = useState("#ffffff"); const [rowBg, setRowBg] = useState("#fffdf8"); const [btn, setBtn] = useState("Order now");
   const [rounded, setRounded] = useState(true); const [radius, setRadius] = useState(16); const [maxW, setMaxW] = useState(520);
-  const [photo, setPhoto] = useState<{ url: string; w: number; h: number } | null>(null); const [uploading, setUploading] = useState(false); const [link, setLink] = useState(""); const [upErr, setUpErr] = useState(""); const [cropFile, setCropFile] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<{ url: string; w: number; h: number } | null>(null); const [uploading, setUploading] = useState(false); const [link, setLink] = useState(""); const [upErr, setUpErr] = useState(""); const [cropFile, setCropFile] = useState<File | null>(null); const [fromLib, setFromLib] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const waveSvg = (w: number, h: number) =>
@@ -80,7 +80,11 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
               {uploading ? "Uploading…" : photo ? <img src={photo.url} alt="" className="max-h-28 rounded object-contain" style={{ borderRadius: radius / 2 }} /> : <><span className="font-medium">Upload a photo</span><span className="text-black/50">Any size — you'll crop and zoom it next</span></>}
             </label>}
             {upErr && <div className="text-xs text-red-600">{upErr}</div>}
-            <input value={photo?.url ?? ""} onChange={e => setPhoto(e.target.value ? { url: e.target.value, w: 1200, h: 800 } : null)} placeholder="…or paste an image URL" className="w-full rounded border border-black/10 px-2 py-1 text-xs" />
+            <div className="flex gap-1">
+              <input value={photo?.url ?? ""} onChange={e => setPhoto(e.target.value ? { url: e.target.value, w: 1200, h: 800 } : null)} placeholder="…or paste an image URL" className="min-w-0 flex-1 rounded border border-black/10 px-2 py-1 text-xs" />
+              <button onClick={() => setFromLib(v => !v)} className={`whitespace-nowrap rounded border px-2 py-1 text-xs ${fromLib ? "border-brand text-brand" : "border-black/15"}`}>From library</button>
+            </div>
+            {fromLib && <div className="h-64 overflow-hidden rounded border border-black/10"><MediaLibrary compact onSelect={(m: MediaItem) => { setPhoto({ url: m.url, w: m.width ?? 1200, h: m.height ?? 800 }); setFromLib(false); }} /></div>}
             <div className="flex items-center gap-2 text-xs"><span>Corners</span><input type="range" min={0} max={40} value={radius} onChange={e => setRadius(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{radius}px</span></div>
             <div className="flex items-center gap-2 text-xs"><span>Width</span><input type="range" min={200} max={600} step={20} value={maxW} onChange={e => setMaxW(Number(e.target.value))} className="flex-1" /><span className="w-10 text-right">{maxW}px</span></div>
             <input value={link} onChange={e => setLink(e.target.value)} placeholder="Link (optional)" className="w-full rounded border border-black/10 px-2 py-1 text-xs" />
