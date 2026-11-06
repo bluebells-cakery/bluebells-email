@@ -42,12 +42,20 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   };
   const back = () => save(() => { window.location.href = campaignId ? `/campaigns/${campaignId}` : "/templates"; });
 
-  // Replace Unlayer's image picker with our media library — must be registered before editor:ready (onLoad), like Unlayer's own example.
-  const onLoad: EmailEditorProps["onLoad"] = (u) => {
-    u.registerCallback("selectImage", (_data: unknown, done: (r: { url: string }) => void) => {
-      setPicker(() => (url: string) => { done({ url }); setPicker(null); });
-    });
+  // Replace Unlayer's image picker with our media library. Registered on the global unlayer object as soon as embed.js
+  // loads (before the editor is created, like Unlayer's own example) and again on the editor instance in onLoad.
+  const selectImage = (_data: unknown, done: (r: { url: string }) => void) => {
+    setPicker(() => (url: string) => { done({ url }); setPicker(null); });
   };
+  useEffect(() => {
+    const t = setInterval(() => {
+      const g = (window as unknown as { unlayer?: { registerCallback: (n: string, f: unknown) => void } }).unlayer;
+      if (g?.registerCallback) { g.registerCallback("selectImage", selectImage); clearInterval(t); }
+    }, 25);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onLoad: EmailEditorProps["onLoad"] = (u) => { u.registerCallback("selectImage", selectImage); };
   const onReady: EmailEditorProps["onReady"] = (u) => {
     if (design && Object.keys(design).length) u.loadDesign(design as never);
   };
