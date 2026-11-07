@@ -54,6 +54,8 @@ export async function notifyNewReview(reviewId: number) {
     const [r] = await sql`select * from reviews where id = ${reviewId}`;
     if (!r) return;
     const [s] = await sql`select value from settings where key = 'review_notify'`;
+    const [m] = await sql`select value from settings where key = 'review_notify_mode'`;
+    if (String(m?.value ?? "all") === "low" && r.rating > 3) return; // only 3 stars and below
     const to = String(s?.value ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/).filter(x => x.includes("@"));
     const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
     const photos = (r.photos as string[]).map(u => `<img src="${u}" width="120" style="border-radius:8px;margin:4px 4px 0 0">`).join("");
