@@ -37,6 +37,7 @@ export default async function ReviewsPage() {
   const preview = t?.html ? renderTemplate(t.html, { first_name: "Ryan", email: "preview@example.com", token: "preview", unsubscribe_url: "#", order: sampleOrder }) : "";
   const received = await sql`select created_at, name, email, product_title, rating, body, photos, status, judgeme_error from reviews order by created_at desc limit 30`;
   const [te] = await sql`select value from settings where key = 'test_emails'`;
+  const [rn] = await sql`select value from settings where key = 'review_notify'`;
   const testTo = String(te?.value ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/)[0];
 
   const provider = (process.env.EMAIL_PROVIDER ?? "ses") === "resend" ? "Resend" : "Amazon SES";
@@ -61,7 +62,7 @@ export default async function ReviewsPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_420px]">
         <div className="space-y-6">
-          <Card title="Settings"><ReviewSettings enabled={enabled} days={wait.days} time={wait.time} /></Card>
+          <Card title="Settings"><ReviewSettings enabled={enabled} days={wait.days} time={wait.time} notify={String(rn?.value ?? "ryan@bluebellscakery.co.nz")} /></Card>
 
           <Card title={`Scheduled (${pending.n})`}>
             {upcoming.length === 0 ? <p className="text-sm text-black/50">Nothing scheduled.</p> :

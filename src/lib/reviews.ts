@@ -1,6 +1,7 @@
 import { sql } from "@/lib/db";
 import { shopifyGraphql } from "@/lib/shopify";
 import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
+import { sendEmail } from "@/lib/ses";
 
 export type ReviewItem = { title: string; handle: string; image: string | null };
 export type ReviewCtx = { sendId: number | null; contactId: number | null; firstName: string; lastName: string; email: string; orderName: string; items: ReviewItem[]; preview: boolean; done: Record<string, number> };
@@ -43,4 +44,29 @@ export async function pushToJudgeme(reviewId: number) {
   } catch (e) {
     await sql`update reviews set status = 'error', judgeme_error = ${(e as Error).message.slice(0, 500)} where id = ${reviewId}`;
   }
+}
+
+const esc = (t: string) => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+/** Email the team about a new review (addresses from settings 'review_notify', default ryan@). */
+export async function notifyNewReview(reviewId: number) {
+  try {
+    const [r] = await sql`select * from reviews where id = ${reviewId}`;
+    if (!r) return;
+    const [s] = await sql`select value from settings where key = 'review_notify'`;
+    const to = String(s?.value ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/).filter(x => x.includes("@"));
+    const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+    const photos = (r.photos as string[]).map(u => `<img src="${u}" width="120" style="border-radius:8px;margin:4px 4px 0 0">`).join("");
+    const html = `<div style="font-family:Arial,sans-serif;color:#262967;max-width:560px">
+      <p style="font-size:13px;margin:0 0 6px;opacity:.7">New review via Bluebells EDM</p>
+      <div style="font-size:26px;letter-spacing:2px">${stars}</div>
+      <h2 style="margin:8px 0 4px;font-size:18px">${esc(r.product_title ?? r.product_handle)}</h2>
+      ${r.title ? `<p style="font-weight:bold;margin:8px 0 0">${esc(r.title)}</p>` : ""}
+      <p style="margin:6px 0 10px;white-space:pre-wrap">${esc(r.body ?? "(no comment)")}</p>${photos}
+      <p style="font-size:13px;margin:14px 0 0">${esc(r.name ?? "")} · ${esc(r.email ?? "")} · order ${esc(r.order_name ?? "")}</p>
+      <p style="font-size:13px;margin:4px 0 0">Judge.me: ${r.status === "sent" ? "posted" : r.status === "error" ? "FAILED – " + esc(r.judgeme_error ?? "") : "pending"}</p>
+      <p style="margin:16px 0 0"><a href="https://admin.shopify.com/store/bluebells-cakery/apps/judgeme" style="background:#e4c5e0;color:#262967;text-decoration:none;padding:9px 18px;border-radius:30px;font-weight:bold;font-size:14px">Moderate in Judge.me</a>
+      &nbsp; <a href="${process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz"}/reviews" style="color:#262967;font-size:14px">All reviews</a></p></div>`;
+    for (const addr of to) await sendEmail({ to: addr, subject: `${stars} ${r.rating}-star review: ${r.product_title ?? r.product_handle}`, html, text: `${r.rating}-star review for ${r.product_title}: ${r.body ?? ""} — ${r.name} (${r.email})`, fromName: "Bluebells EDM", replyTo: r.email ?? undefined, tags: { type: "review_notify" } });
+  } catch (e) { console.error("review notify failed", e); }
 }

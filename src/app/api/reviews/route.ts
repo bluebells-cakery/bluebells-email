@@ -3,7 +3,8 @@ import { sql } from "@/lib/db";
 
 // PATCH { enabled?: boolean, days?: number, time?: "HH:MM" } — edits the review-request steps of the Post Purchase flow.
 export async function PATCH(req: NextRequest) {
-  const b = await req.json() as { enabled?: boolean; days?: number; time?: string };
+  const b = await req.json() as { enabled?: boolean; days?: number; time?: string; notify?: string };
+  if (typeof b.notify === "string") { const v = b.notify.split(/[,\s]+/).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)).join(","); await sql`insert into settings(key, value) values ('review_notify', ${v}) on conflict (key) do update set value = excluded.value, updated_at = now()`; if (b.days === undefined && b.time === undefined && b.enabled === undefined) return NextResponse.json({ ok: true, notify: v }); }
   const [f] = await sql`select id, definition from flows where name = 'Post Purchase'`;
   if (!f) return NextResponse.json({ error: "Post Purchase flow not found" }, { status: 404 });
   const def = f.definition as { steps: { id: string; waitUntil?: { days: number; time: string; from: string }; email?: { enabled?: boolean } }[] };

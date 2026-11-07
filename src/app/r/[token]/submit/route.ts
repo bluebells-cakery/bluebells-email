@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { reviewCtx, pushToJudgeme } from "@/lib/reviews";
+import { reviewCtx, pushToJudgeme, notifyNewReview } from "@/lib/reviews";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -18,5 +18,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     on conflict (send_id, product_handle) do nothing returning id`;
   if (!row) return NextResponse.json({ ok: true, duplicate: true });
   await pushToJudgeme(Number(row.id));
+  await notifyNewReview(Number(row.id));
   return NextResponse.json({ ok: true });
 }

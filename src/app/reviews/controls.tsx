@@ -2,8 +2,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function ReviewSettings({ enabled, days, time }: { enabled: boolean; days: number; time: string }) {
-  const r = useRouter(); const [d, setD] = useState(days); const [t, setT] = useState(time); const [on, setOn] = useState(enabled); const [msg, setMsg] = useState("");
+export function ReviewSettings({ enabled, days, time, notify }: { enabled: boolean; days: number; time: string; notify: string }) {
+  const r = useRouter(); const [n, setN] = useState(notify); const [d, setD] = useState(days); const [t, setT] = useState(time); const [on, setOn] = useState(enabled); const [msg, setMsg] = useState("");
   const save = async (patch: Record<string, unknown>) => {
     setMsg("Saving…");
     const res = await fetch("/api/reviews", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
@@ -20,6 +20,10 @@ export function ReviewSettings({ enabled, days, time }: { enabled: boolean; days
         <label>Send time (NZ)<input type="time" value={t} onChange={e => setT(e.target.value)} className="mt-1 block w-28 rounded border border-black/15 px-2 py-1" /></label>
         <button onClick={() => save({ days: d, time: t })} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white">Save timing</button>
         {msg && <span className="text-xs text-black/50">{msg}</span>}
+      </div>
+      <div className="flex flex-wrap items-end gap-3 text-sm">
+        <label className="min-w-0 flex-1">Email me new reviews at<input value={n} onChange={e => setN(e.target.value)} placeholder="ryan@bluebellscakery.co.nz" className="mt-1 block w-full rounded border border-black/15 px-2 py-1" /></label>
+        <button onClick={() => save({ notify: n })} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white">Save</button>
       </div>
       <p className="text-xs text-black/50">New timing applies to orders that reach this step from now on; already-scheduled requests keep their date.</p>
     </div>
