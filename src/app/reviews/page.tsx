@@ -14,8 +14,8 @@ export default async function ReviewsPage() {
   const enabled = steps.find(s => s.id === "rr-email")?.email?.enabled !== false;
 
   const [stats] = await sql`select
-      count(*) filter (where q.status = 'sent')::int sent,
-      count(*) filter (where q.status = 'sent' and q.sent_at > now() - interval '30 days')::int sent30,
+      count(distinct q.id) filter (where q.status = 'sent')::int sent,
+      count(distinct q.id) filter (where q.status = 'sent' and q.sent_at > now() - interval '30 days')::int sent30,
       count(distinct e.contact_id) filter (where e.type = 'open')::int openers,
       count(distinct e.contact_id) filter (where e.type = 'click' and e.url ilike '%jm_review%')::int review_clickers
     from send_queue q left join events e on e.send_id = q.id where q.step_id = 'rr-email'`;
