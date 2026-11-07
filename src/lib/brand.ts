@@ -17,7 +17,7 @@ export const brand = {
   ],
   colours: {
     "Core": [
-      ["Navy (text / primary)", "#262967"], ["Cream (page background)", "#fffdf8"], ["Teal (buttons / links)", "#00bfb3"], ["Teal hover", "#2dccd3"], ["Charcoal", "#333333"], ["White", "#ffffff"],
+      ["Navy (text / primary)", "#262967"], ["Cream (page background)", "#fffdf8"], ["Pink (buttons)", "#e4c5e0"], ["Pink hover", "#d9b2d4"], ["Charcoal", "#333333"], ["White", "#ffffff"],
     ],
     "Pastel accents": [
       ["Blush", "#fbe7e6"], ["Peach", "#fcd1bd"], ["Butter", "#fff9ea"], ["Lilac", "#e4c5e0"], ["Sky", "#c0e6ef"], ["Rose mist", "#fcf0f0"],

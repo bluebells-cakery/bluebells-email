@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db";
+import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
 import { translate } from "@/lib/rules";
 import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
@@ -49,6 +50,10 @@ async function sendStep(run: { id: number; flow_id: number; contact_id: number; 
     first_name: c.first_name, email: c.email, token, unsubscribe_url: `${APP()}/u/${c.unsubscribe_token}`,
     checkout: (run.context.checkout as RenderCtx["checkout"]) ?? null, order: (run.context.order as RenderCtx["order"]) ?? null, products: (run.context.products as RenderCtx["products"]) ?? [],
   };
+  // Show parent products only (drop flavour/size/add-on child lines)
+  const hidden = await hiddenHandles();
+  if (ctx.order) ctx.order = { ...ctx.order, line_items: parentsOnly(ctx.order.line_items as { handle?: string | null }[], hidden) } as RenderCtx["order"];
+  if (ctx.checkout) ctx.checkout = { ...ctx.checkout, line_items: parentsOnly(ctx.checkout.line_items as { handle?: string | null }[], hidden) } as RenderCtx["checkout"];
   const coupons: Record<string, string> = {};
   for (const pool of couponPools(t.html)) { try { coupons[pool] = await getCoupon(pool, c.id); } catch (e) { console.error("coupon", pool, (e as Error).message); } }
   ctx.coupons = coupons;

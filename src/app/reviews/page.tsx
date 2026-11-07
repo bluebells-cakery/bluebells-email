@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { renderTemplate } from "@/lib/render";
+import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
 import { ReviewSettings, TestSend, SkipButton } from "./controls";
 
 const TEMPLATE_ID = 53;
@@ -20,7 +21,7 @@ export default async function ReviewsPage() {
       count(distinct e.contact_id) filter (where e.type = 'click' and e.url ilike '%jm_review%')::int review_clickers
     from send_queue q left join events e on e.send_id = q.id where q.step_id = 'rr-email'`;
   const [pending] = await sql`select count(*)::int n, min(next_at) next from flow_runs where flow_id = ${flow?.id ?? 0} and status = 'active' and step_id = 'rr-email'`;
-  const upcoming = await sql`select r.id, r.next_at, r.context->'order'->>'name' order_name, jsonb_array_length(coalesce(r.context->'order'->'line_items','[]'::jsonb))::int items,
+  const upcoming = await sql`select r.id, r.next_at, r.context->'order'->>'name' order_name, r.context->'order'->'line_items' line_items,
       r.context->'order'->>'fulfil_date' fulfil_date, c.first_name, c.email
     from flow_runs r join contacts c on c.id = r.contact_id
     where r.flow_id = ${flow?.id ?? 0} and r.status = 'active' and r.step_id = 'rr-email' order by r.next_at limit 30`;
@@ -31,7 +32,9 @@ export default async function ReviewsPage() {
 
   const [t] = await sql`select html, subject, updated_at from templates where id = ${TEMPLATE_ID}`;
   const [sample] = await sql`select context from flow_runs where flow_id = ${flow?.id ?? 0} and step_id = 'rr-email' and jsonb_array_length(coalesce(context->'order'->'line_items','[]'::jsonb)) >= 1 order by next_at limit 1`;
-  const preview = t?.html ? renderTemplate(t.html, { first_name: "Ryan", email: "preview@example.com", token: "preview", unsubscribe_url: "#", order: sample?.context?.order }) : "";
+  const hidden = await hiddenHandles();
+  const sampleOrder = sample?.context?.order ? { ...sample.context.order, line_items: parentsOnly(sample.context.order.line_items, hidden) } : undefined;
+  const preview = t?.html ? renderTemplate(t.html, { first_name: "Ryan", email: "preview@example.com", token: "preview", unsubscribe_url: "#", order: sampleOrder }) : "";
   const [te] = await sql`select value from settings where key = 'test_emails'`;
   const testTo = String(te?.value ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/)[0];
 
@@ -45,7 +48,7 @@ export default async function ReviewsPage() {
   return (
     <div className="mx-auto max-w-7xl px-6 py-10">
       <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold">Reviews</h1>
-        <span className={`rounded px-2 py-0.5 text-xs ${enabled ? "bg-green-100 text-green-800" : "bg-black/5 text-black/60"}`}>{enabled ? "Review requests live" : "Review requests paused"}</span></div>
+        <span className={`rounded px-2 py-0.5 text-xs ${enabled ? "bg-[#e4c5e0] text-[#262967]" : "bg-black/5 text-black/60"}`}>{enabled ? "Review requests live" : "Review requests paused"}</span></div>
       <p className="mt-1 text-sm text-black/60">We send the review request emails. Judge.me stores the reviews and shows the stars on the website and Google.</p>
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -62,7 +65,7 @@ export default async function ReviewsPage() {
           <Card title={`Scheduled (${pending.n})`}>
             {upcoming.length === 0 ? <p className="text-sm text-black/50">Nothing scheduled.</p> :
             <table className="w-full text-sm"><thead className="text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="py-1">Sends</th><th>Customer</th><th>Order</th><th>Delivered / picked up</th><th className="text-right">Products</th><th /></tr></thead>
-              <tbody>{upcoming.map(u => <tr key={u.id} className="border-t border-black/5"><td className="py-2 whitespace-nowrap">{nzDate(u.next_at)}</td><td>{u.first_name ?? ""} <span className="text-black/40">{u.email}</span></td><td>{u.order_name ?? "—"}</td><td>{u.fulfil_date ?? "—"}</td><td className="text-right tabular-nums">{u.items}</td><td className="text-right"><SkipButton runId={Number(u.id)} /></td></tr>)}</tbody></table>}
+              <tbody>{upcoming.map(u => <tr key={u.id} className="border-t border-black/5"><td className="py-2 whitespace-nowrap">{nzDate(u.next_at)}</td><td>{u.first_name ?? ""} <span className="text-black/40">{u.email}</span></td><td>{u.order_name ?? "—"}</td><td>{u.fulfil_date ?? "—"}</td><td className="text-right tabular-nums">{parentsOnly(u.line_items, hidden).length}</td><td className="text-right"><SkipButton runId={Number(u.id)} /></td></tr>)}</tbody></table>}
             {pending.n > upcoming.length && <p className="mt-2 text-xs text-black/40">Showing the next {upcoming.length} of {pending.n}.</p>}
           </Card>
 

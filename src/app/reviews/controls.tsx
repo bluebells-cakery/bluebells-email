@@ -13,7 +13,7 @@ export function ReviewSettings({ enabled, days, time }: { enabled: boolean; days
     <div className="space-y-4">
       <label className="flex items-center justify-between gap-4">
         <span><span className="font-medium">Send review requests</span><span className="block text-xs text-black/50">Off pauses new sends; queued ones wait until it's back on.</span></span>
-        <button onClick={() => { setOn(!on); save({ enabled: !on }); }} className={`relative h-6 w-11 rounded-full transition ${on ? "bg-green-600" : "bg-black/20"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${on ? "left-[22px]" : "left-0.5"}`} /></button>
+        <button onClick={() => { setOn(!on); save({ enabled: !on }); }} className={`relative h-6 w-11 rounded-full transition ${on ? "bg-[#e4c5e0]" : "bg-black/20"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full transition ${on ? "left-[22px] bg-[#262967]" : "left-0.5 bg-white"}`} /></button>
       </label>
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <label>Days after delivery / pickup date<input type="number" min={0} max={60} value={d} onChange={e => setD(Number(e.target.value))} className="mt-1 block w-24 rounded border border-black/15 px-2 py-1" /></label>

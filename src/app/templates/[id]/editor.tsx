@@ -87,7 +87,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
                 ...extraFonts.map(f => ({ label: f.label, value: `'${f.family}', ${f.fallback}`, url: fontUrl(f.google) })),
               ],
             },
-            designTags: { brand_navy: "#262967", brand_cream: "#fffdf8", brand_teal: "#00bfb3" },
+            designTags: { brand_navy: "#262967", brand_cream: "#fffdf8", brand_pink: "#e4c5e0" },
             mergeTags: {
               first_name: { name: "First name", value: "{{first_name}}" },
               last_name: { name: "Last name", value: "{{last_name}}" },

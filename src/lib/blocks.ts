@@ -1,7 +1,7 @@
 import { SITE_URL } from "@/lib/site";
 // Builders for Unlayer row JSON — "Bluebells blocks" inserted into a design.
 type Row = Record<string, unknown>;
-const NAVY = "#262967", CREAM = "#fffdf8", TEAL = "#00bfb3";
+const NAVY = "#262967", CREAM = "#fffdf8", PINK = "#e4c5e0";
 const HEAD = "'Crimson Pro', Georgia, 'Times New Roman', serif";
 const BODY = "'Poppins', Arial, Helvetica, sans-serif";
 
@@ -33,7 +33,7 @@ export const button = (label: string, href: string, opts: { bg?: string; color?:
   values: {
     containerPadding: opts.padding ?? "10px", textAlign: "center",
     href: { name: "web", values: { href, target: "_blank" } },
-    buttonColors: { color: opts.color ?? "#ffffff", backgroundColor: opts.bg ?? TEAL, hoverColor: "#ffffff", hoverBackgroundColor: "#2dccd3" },
+    buttonColors: { color: opts.color ?? NAVY, backgroundColor: opts.bg ?? PINK, hoverColor: NAVY, hoverBackgroundColor: "#d9b2d4" },
     size: { autoWidth: true, width: "100%" }, fontSize: "16px", fontFamily: { label: "Poppins (body)", value: BODY },
     lineHeight: "120%", padding: "12px 28px", border: {}, borderRadius: opts.radius ?? "30px", text: `<span style="line-height: 19.2px;">${label}</span>`,
     hideDesktop: false, hideMobile: false,

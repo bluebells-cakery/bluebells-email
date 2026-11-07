@@ -104,7 +104,7 @@ export function BrandClient({ brand }: { brand: B }) {
           <div className="flex flex-wrap items-center gap-4">
             <div className="font-medium">Icons &amp; stickers</div>
             <label className="flex items-center gap-2 text-sm">Colour <input type="color" value={elFill} onChange={e => setElFill(e.target.value)} /></label>
-            <div className="flex gap-1">{["#262967", "#00bfb3", "#fbe7e6", "#fcd1bd", "#ffd56a", "#f67c43", "#ffffff"].map(c => <button key={c} onClick={() => setElFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
+            <div className="flex gap-1">{["#262967", "#fbe7e6", "#fcd1bd", "#ffd56a", "#f67c43", "#ffffff"].map(c => <button key={c} onClick={() => setElFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-4 md:grid-cols-6">
             {brand.elements.map(e => {

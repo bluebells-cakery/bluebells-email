@@ -7,7 +7,7 @@ async function unsub(token: string) {
   if (c) { await sql`insert into suppressions (email, reason, source) values (${c.email}, 'unsubscribe', 'app') on conflict (email) do nothing`; await sql`insert into events (contact_id, type, source) values (${c.id}, 'unsubscribe', 'app')`; await sql`update flow_runs set status = 'cancelled', finished_at = now() where contact_id = ${c.id} and status = 'active'`; }
   return c;
 }
-const page = (msg: string) => new NextResponse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bluebells Cakery</title></head><body style="font-family:Arial,sans-serif;background:#fffdf8;color:#262967;text-align:center;padding:60px 20px"><h1 style="font-weight:400">Bluebells Cakery</h1><p style="font-size:18px">${msg}</p><p><a href="${SITE_URL}" style="color:#00bfb3">${SITE_URL.replace("https://", "")}</a></p></body></html>`, { headers: { "content-type": "text/html" } });
+const page = (msg: string) => new NextResponse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bluebells Cakery</title></head><body style="font-family:Arial,sans-serif;background:#fffdf8;color:#262967;text-align:center;padding:60px 20px"><h1 style="font-weight:400">Bluebells Cakery</h1><p style="font-size:18px">${msg}</p><p><a href="${SITE_URL}" style="color:#262967">${SITE_URL.replace("https://", "")}</a></p></body></html>`, { headers: { "content-type": "text/html" } });
 
 // GET = confirmation page (link scanners follow GETs; never unsubscribe on GET). The button POSTs to confirm.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {

@@ -6,7 +6,7 @@ import { MediaLibrary, type MediaItem } from "@/components/media-library";
 import type { FormConfig } from "@/lib/forms";
 
 type F = { id: number; name: string; kind: string; status: string; config: FormConfig };
-const SW = ["#fbe7e6", "#fcd1bd", "#fff9ea", "#e4c5e0", "#c0e6ef", "#fffdf8", "#262967", "#00bfb3", "#ffffff"];
+const SW = ["#fbe7e6", "#fcd1bd", "#fff9ea", "#e4c5e0", "#c0e6ef", "#fffdf8", "#262967", "#ffffff"];
 
 export function FormEditor({ form, appUrl }: { form: F; appUrl: string }) {
   const r = useRouter();
