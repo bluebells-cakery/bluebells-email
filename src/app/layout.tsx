@@ -15,6 +15,7 @@ const nav = [
   ["/templates", "Templates"],
   ["/contacts", "Contacts"],
   ["/forms", "Forms"],
+  ["/reviews", "Reviews"],
   ["/media", "Media"],
   ["/brand", "Brand"],
 ];
