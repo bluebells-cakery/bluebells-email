@@ -28,7 +28,7 @@ export function renderTemplate(html: string, ctx: RenderCtx): string {
     (ctx.order?.line_items ?? []).filter(it => it.handle).map(it => body
       .replace(/\{\{\s*item\.title\s*\}\}/g, it.title).replace(/\{\{\s*item\.image\s*\}\}/g, it.image ?? "")
       .replace(/\{\{\s*item\.url\s*\}\}/g, `${SITE_URL}/products/${it.handle}`)
-      .replace(/\{\{\s*item\.review_url\s*\}\}/g, `${SITE_URL}/products/${it.handle}?jm_review=1#judgeme_product_reviews`)).join(""));
+      .replace(/\{\{\s*item\.review_url\s*\}\}/g, `${process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz"}/r/${ctx.token || "preview"}?p=${encodeURIComponent(it.handle ?? "")}`)).join(""));
   h = h.replace(/\{\{\s*order\.name\s*\}\}/g, ctx.order?.name ?? "");
   // product feed (best sellers) blocks: {% if feeds.X|index:N %}...{% endif %}
   h = h.replace(/\{%\s*if feeds\.\w+\|index:(\d+)\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g, (_, n, body) => {

@@ -9,7 +9,7 @@ const PUBLIC = [
   /^\/login$/, /^\/api\/login$/, /^\/api\/logout$/,
   /^\/f\/[^/]+$/,                            // embeddable popup script
   /^\/api\/forms\/[^/]+\/(view|submit)$/,    // popup events + submissions
-  /^\/(t|u|v)\//,                            // tracking, unsubscribe, view-in-browser
+  /^\/(t|u|v|r)\//,                          // tracking, unsubscribe, view-in-browser, review form
   /^\/api\/ses\/events$/, /^\/api\/resend\/events$/, /^\/api\/shopify\//, /^\/api\/canva\/(install|callback)$/, /^\/api\/cron\//,
   /^\/_next\//, /^\/favicon/, /^\/(apple-)?icon(-\d+)?\.png$/, /^\/manifest\.webmanifest$/, /^\/brand\//, /^\/[^/]+\.(svg|png|ico|txt)$/,
 ];

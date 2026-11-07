@@ -35,6 +35,7 @@ export default async function ReviewsPage() {
   const hidden = await hiddenHandles();
   const sampleOrder = sample?.context?.order ? { ...sample.context.order, line_items: parentsOnly(sample.context.order.line_items, hidden) } : undefined;
   const preview = t?.html ? renderTemplate(t.html, { first_name: "Ryan", email: "preview@example.com", token: "preview", unsubscribe_url: "#", order: sampleOrder }) : "";
+  const received = await sql`select created_at, name, email, product_title, rating, body, photos, status, judgeme_error from reviews order by created_at desc limit 30`;
   const [te] = await sql`select value from settings where key = 'test_emails'`;
   const testTo = String(te?.value ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/)[0];
 
@@ -75,9 +76,16 @@ export default async function ReviewsPage() {
               <tbody>{recent.map((r, i) => <tr key={i} className="border-t border-black/5"><td className="py-2 whitespace-nowrap">{nzDate(r.sent_at)}</td><td>{r.first_name ?? ""} <span className="text-black/40">{r.email}</span></td><td>{r.opened ? "✓" : ""}</td><td>{r.clicked ? "✓" : ""}</td></tr>)}</tbody></table>}
           </Card>
 
+          <Card title={`Reviews received (${received.length})`} right={<a href="/r/preview" target="_blank" className="text-sm text-brand hover:underline">Preview review page ↗</a>}>
+            {received.length === 0 ? <p className="text-sm text-black/50">None yet — reviews customers leave via our email appear here and go straight into Judge.me.</p> :
+            <table className="w-full text-sm"><thead className="text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="py-1">When</th><th>Customer</th><th>Product</th><th>Rating</th><th>Review</th><th>Judge.me</th></tr></thead>
+              <tbody>{received.map((v, i) => <tr key={i} className="border-t border-black/5 align-top"><td className="py-2 whitespace-nowrap">{nzDate(v.created_at)}</td><td>{v.name}<div className="text-xs text-black/40">{v.email}</div></td><td>{v.product_title}</td><td className="whitespace-nowrap">{"★".repeat(v.rating)}<span className="text-black/20">{"★".repeat(5 - v.rating)}</span></td><td className="max-w-xs">{v.body ?? ""}{(v.photos as string[]).length > 0 && <div className="mt-1 flex gap-1">{(v.photos as string[]).map(u => <img key={u} src={u} alt="" className="h-10 w-10 rounded object-cover" />)}</div>}</td><td>{v.status === "sent" ? <span className="text-black/60">✓ posted</span> : v.status === "error" ? <span className="text-red-700" title={v.judgeme_error ?? ""}>failed</span> : "pending"}</td></tr>)}</tbody></table>}
+          </Card>
+
           <Card title="Judge.me">
             <ul className="space-y-1 text-sm">
               <li>Judge.me's own review emails: <strong>off</strong> (we send them instead)</li>
+              <li>Reviews from our form are posted to Judge.me automatically via its API</li>
               <li>Stores reviews, photos, star widgets and the Google Shopping feed</li>
             </ul>
             <a href="https://admin.shopify.com/store/bluebells-cakery/apps/judgeme" target="_blank" className="mt-3 inline-block text-sm text-brand hover:underline">Open Judge.me (moderate reviews) ↗</a>
