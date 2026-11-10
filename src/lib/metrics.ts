@@ -34,32 +34,28 @@ export async function overview(days: Period) {
 
 export async function byFlow(days: Period) {
   const iv = `${days} days`;
+  // Separate aggregates per flow — joining events and orders together multiplied rows.
   return sql`select f.id, f.name, f.status,
-      count(q.id) filter (where q.status='sent')::int as sent,
-      count(distinct e_o.send_id)::int as opened, count(distinct e_c.send_id)::int as clicked,
-      coalesce(sum(o.total),0)::float as revenue, count(distinct o.id)::int as orders
-    from flows f
-    left join send_queue q on q.flow_id = f.id and q.sent_at > now() - ${iv}::interval
-    left join events e_o on e_o.send_id = q.id and e_o.type='open' and e_o.source='app'
-    left join events e_c on e_c.send_id = q.id and e_c.type='click' and e_c.source='app'
-    left join orders o on o.attributed_send_id = q.id
-    group by f.id order by revenue desc, sent desc`;
+      (select count(*) from send_queue q where q.flow_id = f.id and q.status = 'sent' and q.sent_at > now() - ${iv}::interval)::int as sent,
+      (select count(distinct e.send_id) from events e join send_queue q on q.id = e.send_id where q.flow_id = f.id and q.sent_at > now() - ${iv}::interval and e.type = 'open' and e.source = 'app')::int as opened,
+      (select count(distinct e.send_id) from events e join send_queue q on q.id = e.send_id where q.flow_id = f.id and q.sent_at > now() - ${iv}::interval and e.type = 'click' and e.source = 'app')::int as clicked,
+      (select coalesce(sum(o.total), 0) from orders o join send_queue q on q.id = o.attributed_send_id where q.flow_id = f.id and q.sent_at > now() - ${iv}::interval)::float as revenue,
+      (select count(*) from orders o join send_queue q on q.id = o.attributed_send_id where q.flow_id = f.id and q.sent_at > now() - ${iv}::interval)::int as orders
+    from flows f order by revenue desc, sent desc`;
 }
 
 export async function byCampaign(days: Period) {
   const iv = `${days} days`;
+  // Each metric is a separate aggregate so joins can't multiply rows (opens × clicks × orders).
   const rows = await sql`select c.id, c.name, c.subject, c.sent_at, c.recipient_count, c.source, c.klaviyo_stats,
-      count(q.id) filter (where q.status='sent')::int as sent,
-      count(distinct e_o.send_id)::int as opened, count(distinct e_c.send_id)::int as clicked,
-      count(distinct e_u.id)::int as unsubscribes,
-      coalesce(sum(o.total),0)::float as revenue, count(distinct o.id)::int as orders
+      (select count(*) from send_queue q where q.campaign_id = c.id and q.status = 'sent')::int as sent,
+      (select count(distinct e.send_id) from events e join send_queue q on q.id = e.send_id where q.campaign_id = c.id and e.type = 'open' and e.source = 'app')::int as opened,
+      (select count(distinct e.send_id) from events e join send_queue q on q.id = e.send_id where q.campaign_id = c.id and e.type = 'click' and e.source = 'app')::int as clicked,
+      (select count(distinct e.contact_id) from events e where e.campaign_id = c.id and e.type = 'unsubscribe')::int as unsubscribes,
+      (select coalesce(sum(o.total), 0) from orders o join send_queue q on q.id = o.attributed_send_id where q.campaign_id = c.id)::float as revenue,
+      (select count(*) from orders o join send_queue q on q.id = o.attributed_send_id where q.campaign_id = c.id)::int as orders
     from campaigns c
-    left join send_queue q on q.campaign_id = c.id
-    left join events e_o on e_o.send_id = q.id and e_o.type='open' and e_o.source='app'
-    left join events e_c on e_c.send_id = q.id and e_c.type='click' and e_c.source='app'
-    left join events e_u on e_u.campaign_id = c.id and e_u.type='unsubscribe'
-    left join orders o on o.attributed_send_id = q.id
-    where c.status = 'sent' and c.sent_at > now() - ${iv}::interval group by c.id order by c.sent_at desc`;
+    where c.status = 'sent' and c.sent_at > now() - ${iv}::interval order by c.sent_at desc`;
   // Klaviyo-era campaigns carry their stats from Klaviyo's reporting API
   return rows.map(r => {
     const k = r.klaviyo_stats as Record<string, number> | null;
