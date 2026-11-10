@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { sql } from "@/lib/db";
+import { defaultProvider, providerLabel } from "@/lib/ses";
 import { renderTemplate } from "@/lib/render";
 import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
 import { ReviewSettings, TestSend, SkipButton } from "./controls";
@@ -41,7 +42,7 @@ export default async function ReviewsPage() {
   const [rm] = await sql`select value from settings where key = 'review_notify_mode'`;
   const testTo = String(te?.value ?? "ryan@bluebellscakery.co.nz").split(/[,\s]+/)[0];
 
-  const provider = (process.env.EMAIL_PROVIDER ?? "ses") === "resend" ? "Resend" : "Amazon SES";
+  const provider = providerLabel(await defaultProvider());
   const Card = ({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) => (
     <section className="rounded-lg border border-black/10 bg-white p-5"><div className="mb-4 flex items-center justify-between gap-3"><h2 className="font-semibold">{title}</h2>{right}</div>{children}</section>);
   const Stat = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (

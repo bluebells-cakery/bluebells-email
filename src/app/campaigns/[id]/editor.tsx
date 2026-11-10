@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Audience = { include: "subscribed" | "segments"; segment_ids: number[]; exclude_segment_ids: number[] };
-type C = { id: number; name: string; smart_sending: boolean; subject: string | null; preview_text: string | null; from_name: string | null; template_id: number | null; html: string | null; status: string; scheduled_at: string | null; recipient_count: number | null; audience: Audience; sent_at: string | null };
+type C = { id: number; name: string; smart_sending: boolean; subject: string | null; preview_text: string | null; from_name: string | null; template_id: number | null; html: string | null; status: string; scheduled_at: string | null; recipient_count: number | null; audience: Audience; sent_at: string | null; provider?: string | null };
 type T = { id: number; name: string; kind: string; subject: string | null };
 type S = { id: number; name: string; supported: boolean };
 
@@ -67,6 +67,10 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
         </div>
         <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 text-sm">
           <h2 className="font-medium">4. Send</h2>
+          <label className="mt-3 block"><span className="text-xs uppercase tracking-wide text-black/50">Send via</span>
+            <select disabled={locked} value={c.provider ?? ""} onChange={e => { const provider = e.target.value || null; setC({ ...c, provider }); patch({ provider: provider ?? "" }); }} className="mt-1 w-full rounded border border-black/10 px-2 py-1.5">
+              <option value="">Default (set on Flows page)</option><option value="resend">Resend</option><option value="ses">Amazon SES</option>
+            </select></label>
           {c.status === "draft" && (<>
             <button onClick={() => act("send")} disabled={!c.html || !c.subject} className="mt-3 w-full rounded-md bg-brand px-4 py-2 font-medium text-white disabled:opacity-40">Send now</button>
             <div className="my-3 text-center text-xs text-black/40">or</div>

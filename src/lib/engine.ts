@@ -4,7 +4,7 @@ import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
 import { translate } from "@/lib/rules";
 import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
-import { sendEmail } from "@/lib/ses";
+import { sendEmail, defaultProvider } from "@/lib/ses";
 import { getSetting, setSetting } from "@/lib/settings";
 
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
@@ -132,16 +132,17 @@ export async function processQueue(limit = 50) {
       (select count(distinct send_id)::int from events where type='bounce' and occurred_at > now() - interval '24 hours') bounces from send_queue`;
   const paused = h.sent > 200 && (h.complaints / h.sent > 0.001 || h.bounces / h.sent > 0.05);
   if (paused) await setSetting("campaigns_paused", `${new Date().toISOString()} complaints ${h.complaints}/${h.sent} bounces ${h.bounces}/${h.sent}`); else await setSetting("campaigns_paused", "");
-  const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token
-    from send_queue q join contacts c on c.id = q.contact_id where q.status = 'queued' and q.send_after <= now() ${paused ? sql`and q.campaign_id is null` : sql``} order by q.id limit ${limit}`;
+  const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token, ca.provider
+    from send_queue q join contacts c on c.id = q.contact_id left join campaigns ca on ca.id = q.campaign_id where q.status = 'queued' and q.send_after <= now() ${paused ? sql`and q.campaign_id is null` : sql``} order by q.id limit ${limit}`;
   let sent = 0, skipped = 0;
+  const defProv = await defaultProvider();
   const work = async (r: (typeof rows)[number]) => {
     const suppressed = (await sql`select 1 from suppressions where email = ${r.email}`).length > 0;
     if (r.status !== "subscribed" || suppressed) { await sql`update send_queue set status = 'skipped', error = 'not subscribed / suppressed' where id = ${r.id}`; skipped++; return; }
     if (mode === "shadow" || (mode === "test" && !allow.includes(String(r.email).toLowerCase()))) { await sql`update send_queue set status = 'skipped', error = ${"engine mode " + mode} where id = ${r.id}`; skipped++; return; }
     try {
-      const id = await sendEmail({ to: r.email, subject: r.subject, html: r.html, text: textVersion(r.html), fromName: r.from_name ?? undefined, fromEmail: r.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", unsubscribeUrl: `${APP()}/u/${r.unsubscribe_token}`, tags: { flow: String(r.flow_id ?? ""), campaign: String(r.campaign_id ?? "") } });
-      await sql`update send_queue set status = 'sent', sent_at = now(), ses_message_id = ${id}, attempts = attempts + 1 where id = ${r.id}`;
+      const id = await sendEmail({ to: r.email, subject: r.subject, html: r.html, text: textVersion(r.html), fromName: r.from_name ?? undefined, fromEmail: r.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", unsubscribeUrl: `${APP()}/u/${r.unsubscribe_token}`, tags: { flow: String(r.flow_id ?? ""), campaign: String(r.campaign_id ?? "") }, provider: r.provider ?? defProv });
+      await sql`update send_queue set status = 'sent', sent_at = now(), ses_message_id = ${id}, provider = ${r.provider ?? defProv}, attempts = attempts + 1 where id = ${r.id}`;
       await sql`update contacts set last_sent_at = now() where id = ${r.contact_id}`;
       await sql`insert into events (contact_id, send_id, flow_id, campaign_id, type, source) values (${r.contact_id}, ${r.id}, ${r.flow_id}, ${r.campaign_id}, 'sent', 'app')`;
       sent++;

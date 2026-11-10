@@ -12,11 +12,26 @@ export type SendArgs = {
   replyTo?: string;
   unsubscribeUrl?: string;
   tags?: Record<string, string>;
+  /** Override the default provider for this send. */
+  provider?: Provider | null;
 };
 
-/** Provider switch: EMAIL_PROVIDER=resend | ses (default ses). */
+export type Provider = "resend" | "ses";
+let cached: { v: Provider; at: number } | null = null;
+/** Default provider: settings.email_provider (set in the app), falling back to EMAIL_PROVIDER env. */
+export async function defaultProvider(): Promise<Provider> {
+  if (cached && Date.now() - cached.at < 60_000) return cached.v;
+  let v: string | null = null;
+  try { const { getSetting } = await import("@/lib/settings"); v = await getSetting("email_provider"); } catch {}
+  const p: Provider = (v ?? process.env.EMAIL_PROVIDER ?? "ses") === "resend" ? "resend" : "ses";
+  cached = { v: p, at: Date.now() }; return p;
+}
+export const providerLabel = (p: string | null | undefined) => (p === "ses" ? "Amazon SES" : p === "resend" ? "Resend" : "Default");
+
+/** Sends via a.provider, else the app default (Resend and SES both live). */
 export async function sendEmail(a: SendArgs): Promise<string> {
-  if ((process.env.EMAIL_PROVIDER ?? "ses") === "resend") {
+  const p = a.provider ?? (await defaultProvider());
+  if (p === "resend") {
     const { resendSend } = await import("@/lib/resend");
     return resendSend(a);
   }
