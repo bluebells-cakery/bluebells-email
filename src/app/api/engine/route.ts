@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/settings";
 import { sql } from "@/lib/db";
 import { ses } from "@/lib/ses";
-import { GetAccountCommand } from "@aws-sdk/client-sesv2";
+import { GetAccountCommand, GetEmailIdentityCommand, GetConfigurationSetEventDestinationsCommand } from "@aws-sdk/client-sesv2";
 
 async function sesStatus() {
-  try { const a = await ses.send(new GetAccountCommand({})); return { ok: !!a.ProductionAccessEnabled && !!a.SendingEnabled, detail: `${a.ProductionAccessEnabled ? "production" : "sandbox"} · ${Math.round(a.SendQuota?.Max24HourSend ?? 0).toLocaleString()}/day · ${a.SendQuota?.MaxSendRate ?? 0}/sec · ${Math.round(a.SendQuota?.SentLast24Hours ?? 0)} sent 24h` }; }
+  try {
+    const a = await ses.send(new GetAccountCommand({}));
+    const domain = (process.env.SES_FROM_EMAIL ?? "").split("@")[1] ?? "";
+    let dom = "domain ?"; let domOk = false;
+    try { const i = await ses.send(new GetEmailIdentityCommand({ EmailIdentity: domain })); domOk = !!i.VerifiedForSendingStatus && i.DkimAttributes?.Status === "SUCCESS"; dom = `${domain} ${domOk ? "verified" : `not verified (DKIM ${i.DkimAttributes?.Status})`}`; } catch (e) { dom = `${domain} not set up (${(e as Error).name})`; }
+    let evt = "events ?"; let evtOk = false;
+    try { const d = await ses.send(new GetConfigurationSetEventDestinationsCommand({ ConfigurationSetName: process.env.SES_CONFIGURATION_SET })); const on = (d.EventDestinations ?? []).filter(x => x.Enabled && x.SnsDestination); evtOk = on.some(x => x.MatchingEventTypes?.includes("BOUNCE") && x.MatchingEventTypes?.includes("COMPLAINT")); evt = evtOk ? "bounce/complaint tracking on" : "bounce/complaint tracking OFF"; } catch (e) { evt = `config set missing (${(e as Error).name})`; }
+    return { ok: !!a.ProductionAccessEnabled && !!a.SendingEnabled && domOk && evtOk, detail: `${a.ProductionAccessEnabled ? "production" : "sandbox"} · ${Math.round(a.SendQuota?.Max24HourSend ?? 0).toLocaleString()}/day · ${a.SendQuota?.MaxSendRate ?? 0}/sec · ${dom} · ${evt}` };
+  }
   catch (e) { return { ok: false, detail: (e as Error).name === "UnrecognizedClientException" ? "AWS access key invalid" : (e as Error).message }; }
 }
 
