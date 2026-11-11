@@ -138,6 +138,7 @@ export async function processQueue(limit = 50) {
   const defProv = await defaultProvider();
   const work = async (r: (typeof rows)[number]) => {
     const suppressed = (await sql`select 1 from suppressions where email = ${r.email}`).length > 0;
+    if (!/^[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(String(r.email)) || String(r.email).includes("..")) { await sql`update send_queue set status = 'skipped', error = 'invalid email address' where id = ${r.id}`; skipped++; return; }
     if (r.status !== "subscribed" || suppressed) { await sql`update send_queue set status = 'skipped', error = 'not subscribed / suppressed' where id = ${r.id}`; skipped++; return; }
     if (mode === "shadow" || (mode === "test" && !allow.includes(String(r.email).toLowerCase()))) { await sql`update send_queue set status = 'skipped', error = ${"engine mode " + mode} where id = ${r.id}`; skipped++; return; }
     try {
