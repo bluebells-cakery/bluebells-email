@@ -49,11 +49,15 @@ export async function queueCampaign(campaignId: number, batch = 500, opts: { sof
 }
 
 /** Called by the cron tick: queue any scheduled campaigns whose time has come, and mark sending→sent when the queue drains. */
+export const SLOW_BATCH = 300;
 export async function tickCampaigns() {
   const due = await sql`select id from campaigns where (status = 'scheduled' and (scheduled_at is null or scheduled_at <= now())) or status = 'sending' order by id`;
   let total = 0;
   for (const c of due) {
-    const r = await queueCampaign(c.id, 400); total += r.queued;
+    // Always slow-send: 300 recipients every 15 minutes, so the bounce/complaint circuit breaker can react between batches.
+    const [last] = await sql`select max(created_at) > now() - interval '15 minutes' recent from send_queue where campaign_id = ${c.id}`;
+    if (last?.recent) continue;
+    const r = await queueCampaign(c.id, SLOW_BATCH); total += r.queued;
     if (r.done) { const [left] = await sql`select count(*)::int n from send_queue where campaign_id = ${c.id} and status = 'queued'`; if (left.n === 0) await sql`update campaigns set status = 'sent', sent_at = coalesce(sent_at, now()) where id = ${c.id}`; }
     if (total >= 800) break;
   }

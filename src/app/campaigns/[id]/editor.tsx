@@ -19,7 +19,7 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
   const setAud = (a: Partial<Audience>) => { const audience = { ...c.audience, ...a }; setC({ ...c, audience }); patch({ audience }); };
   const toggle = (list: "segment_ids" | "exclude_segment_ids", id: number) => setAud({ [list]: c.audience[list].includes(id) ? c.audience[list].filter(x => x !== id) : [...c.audience[list], id] });
   const act = async (action: "send" | "schedule" | "cancel") => {
-    if (action !== "cancel" && !confirm(`${action === "send" ? "Send now" : "Schedule"} to ${count?.toLocaleString()} people?`)) return;
+    if (action !== "cancel" && !confirm(`${action === "send" ? "Send now" : "Schedule"} to ${count?.toLocaleString()} people?\n\nGoes out slowly: 300 every 15 minutes (about ${Math.max(1, Math.round(((count ?? 0) / 300) * 15 / 60 * 10) / 10)} hours).`)) return;
     if (await patch({ action, scheduled_at: when ? new Date(when).toISOString() : null })) r.refresh();
   };
   const Field = ({ l, k, ph }: { l: string; k: "name" | "subject" | "preview_text" | "from_name"; ph?: string }) => (
@@ -80,7 +80,7 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
           {c.status === "scheduled" && (<><div className="mt-2">Scheduled for {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString("en-NZ") : "now"} · {c.recipient_count?.toLocaleString()} recipients</div><button onClick={() => act("cancel")} className="mt-3 w-full rounded-md border border-black/15 px-4 py-2">Cancel schedule</button></>)}
           {msg && <div className="mt-3 text-xs text-red-600">{msg}</div>}
           <TestSend campaignId={c.id} disabled={!c.html} />
-          <p className="mt-4 text-xs text-black/50">Sends respect the engine mode on the Flows page (shadow / test / live) and SES's hourly limits; big sends drain over a few minutes.</p>
+          <p className="mt-4 text-xs text-black/50">Campaigns always send slowly: 300 people every 15 minutes, and pause automatically if bounces or complaints spike. Sends respect the engine mode on the Flows page (shadow / test / live).</p>
         </aside>
       </div>
     </div>
