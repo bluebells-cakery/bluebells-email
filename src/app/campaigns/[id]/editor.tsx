@@ -12,6 +12,7 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
   const r = useRouter();
   const [c, setC] = useState(campaign); const [count, setCount] = useState<number | null>(null); const [msg, setMsg] = useState(""); const [when, setWhen] = useState("");
   const [saved, setSaved] = useState<"" | "saving" | "saved">("");
+  const [busy, setBusy] = useState(false); const [done, setDone] = useState("");
   const locked = !["draft", "scheduled"].includes(c.status);
   const patch = async (b: Record<string, unknown>) => { setSaved("saving"); const res = await fetch(`/api/campaigns/${c.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(b) }); if (!res.ok) setMsg((await res.json()).error); setSaved("saved"); setTimeout(() => setSaved(""), 1500); return res.ok; };
   const saveAll = async () => { const f = document.querySelectorAll<HTMLInputElement>("input[data-k]"); const b: Record<string, string> = {}; f.forEach(i => { b[i.dataset.k!] = i.value; }); setC({ ...c, ...b }); await patch(b); };
@@ -20,8 +21,18 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
   const toggle = (list: "segment_ids" | "exclude_segment_ids", id: number) => setAud({ [list]: c.audience[list].includes(id) ? c.audience[list].filter(x => x !== id) : [...c.audience[list], id] });
   const act = async (action: "send" | "schedule" | "cancel") => {
     if (action !== "cancel" && !confirm(`${action === "send" ? "Send now" : "Schedule"} to ${count?.toLocaleString()} people?\n\nGoes out slowly: 300 every 15 minutes (about ${Math.max(1, Math.round(((count ?? 0) / 300) * 15 / 60 * 10) / 10)} hours).`)) return;
-    if (await patch({ action, scheduled_at: when ? new Date(when).toISOString() : null })) r.refresh();
+    setBusy(true);
+    const at = action === "schedule" && when ? new Date(when).toISOString() : null;
+    const ok = await patch({ action, scheduled_at: at });
+    setBusy(false);
+    if (!ok) return;
+    setC(p => ({ ...p, status: action === "cancel" ? "draft" : "scheduled", scheduled_at: at, recipient_count: action === "cancel" ? p.recipient_count : count }));
+    setDone(action === "send" ? `Sending started — ${count?.toLocaleString()} people, 300 every 15 minutes. You can close this page.` : action === "schedule" ? `Scheduled for ${new Date(when).toLocaleString("en-NZ")} — ${count?.toLocaleString()} people.` : "Send cancelled — back to draft.");
+    window.scrollTo({ top: 0, behavior: "smooth" }); r.refresh();
   };
+  // Live progress while it is going out
+  const [live, setLive] = useState(stats);
+  useEffect(() => { if (!["scheduled", "sending"].includes(c.status)) return; const t = setInterval(async () => { const j = await (await fetch(`/api/campaigns/${c.id}`)).json(); if (j.stats) setLive(j.stats); if (j.status && j.status !== c.status) setC(p => ({ ...p, status: j.status, sent_at: j.sent_at })); }, 20000); return () => clearInterval(t); }, [c.status, c.id]);
   const Field = ({ l, k, ph }: { l: string; k: "name" | "subject" | "preview_text" | "from_name"; ph?: string }) => (
     <label className="block"><span className="text-xs uppercase tracking-wide text-black/50">{l}</span>
       <input disabled={locked} data-k={k} defaultValue={c[k] ?? ""} placeholder={ph} onBlur={e => { if (e.target.value !== (c[k] ?? "")) { setC({ ...c, [k]: e.target.value }); patch({ [k]: e.target.value }); } }} className="mt-1 w-full rounded border border-black/10 bg-white px-3 py-2 text-sm disabled:bg-black/5" /></label>);
@@ -32,7 +43,8 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
       <div className="mt-2 flex items-center gap-3"><h1 className="text-2xl font-semibold">{c.name}</h1><span className="rounded bg-black/5 px-2 py-0.5 text-xs">{c.status}</span><div className="flex-1" />
         <span className="text-xs text-black/50">{saved === "saving" ? "Saving…" : saved === "saved" ? "Saved" : "Changes save automatically"}</span>
         {!locked && <button onClick={saveAll} className="rounded-md border border-black/15 px-3 py-1.5 text-sm hover:border-black/40">Save</button>}</div>
-      {locked && <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">Sent {stats.sent.toLocaleString()} · queued {stats.queued.toLocaleString()} · skipped {stats.skipped.toLocaleString()} · failed {stats.failed}{c.sent_at && ` · completed ${new Date(c.sent_at).toLocaleString("en-NZ")}`}</div>}
+      {done && <div className="mt-4 rounded-lg border border-green-600/40 bg-green-50 p-4 text-sm font-medium text-green-900">✓ {done}</div>}
+      {locked && <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-sm">{c.status === "sending" ? "Sending… " : ""}Sent {live.sent.toLocaleString()}{c.recipient_count ? ` of ${c.recipient_count.toLocaleString()}` : ""} · queued {live.queued.toLocaleString()} · skipped {live.skipped.toLocaleString()} · failed {live.failed}{c.sent_at && ` · completed ${new Date(c.sent_at).toLocaleString("en-NZ")}`}</div>}
       <div className="mt-6 grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="space-y-5">
           <section className="rounded-lg border border-black/10 bg-white p-5 space-y-3">
@@ -72,12 +84,12 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
               <option value="">Default (set on Flows page)</option><option value="resend">Resend</option><option value="ses">Amazon SES</option>
             </select></label>
           {c.status === "draft" && (<>
-            <button onClick={() => act("send")} disabled={!c.html || !c.subject} className="mt-3 w-full rounded-md bg-brand px-4 py-2 font-medium text-white disabled:opacity-40">Send now</button>
+            <button onClick={() => act("send")} disabled={busy || !c.html || !c.subject} className="mt-3 w-full rounded-md bg-brand px-4 py-2 font-medium text-white disabled:opacity-40">{busy ? "Starting…" : "Send now"}</button>
             <div className="my-3 text-center text-xs text-black/40">or</div>
             <input type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} className="w-full rounded border border-black/10 px-2 py-1.5" />
             <button onClick={() => act("schedule")} disabled={!when || !c.html || !c.subject} className="mt-2 w-full rounded-md border border-brand px-4 py-2 font-medium text-brand disabled:opacity-40">Schedule</button>
           </>)}
-          {c.status === "scheduled" && (<><div className="mt-2">Scheduled for {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString("en-NZ") : "now"} · {c.recipient_count?.toLocaleString()} recipients</div><button onClick={() => act("cancel")} className="mt-3 w-full rounded-md border border-black/15 px-4 py-2">Cancel schedule</button></>)}
+          {c.status === "scheduled" && (<><div className="mt-2 rounded bg-green-50 p-2 font-medium text-green-900">{c.scheduled_at ? `Scheduled for ${new Date(c.scheduled_at).toLocaleString("en-NZ")}` : "✓ Send started — first 300 go within a minute"} · {c.recipient_count?.toLocaleString()} recipients</div><button onClick={() => act("cancel")} className="mt-3 w-full rounded-md border border-black/15 px-4 py-2">Cancel schedule</button></>)}
           {msg && <div className="mt-3 text-xs text-red-600">{msg}</div>}
           <TestSend campaignId={c.id} disabled={!c.html} />
           <p className="mt-4 text-xs text-black/50">Campaigns always send slowly: 300 people every 15 minutes, and pause automatically if bounces or complaints spike. Sends respect the engine mode on the Flows page (shadow / test / live).</p>

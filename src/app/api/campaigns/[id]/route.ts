@@ -5,7 +5,9 @@ import { audienceCount, type Audience } from "@/lib/campaigns";
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [c] = await sql`select * from campaigns where id = ${id}`;
-  return c ? NextResponse.json(c) : NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!c) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const [stats] = await sql`select count(*) filter (where status='sent')::int sent, count(*) filter (where status='queued')::int queued, count(*) filter (where status='skipped')::int skipped, count(*) filter (where status='failed')::int failed from send_queue where campaign_id = ${id}`;
+  return NextResponse.json({ ...c, stats });
 }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; const b = await req.json();
