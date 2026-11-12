@@ -18,7 +18,7 @@ const nav = [
   ["/reviews", "Reviews"],
   ["/media", "Media"],
   ["/brand", "Brand"],
-  ["/users", "Team"],
+  ["/users", "Users"],
 ];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

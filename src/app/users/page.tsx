@@ -12,7 +12,7 @@ export default async function Users() {
   const [s] = await sql`select count(*)::int n from send_queue where status = 'sent' and sent_at > now() - interval '24 hours'`;
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Team &amp; security</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Users &amp; security</h1>
       <p className="mt-1 text-sm text-black/60">Logged in as {me.email} ({me.role}).</p>
       <form method="post" action="/api/logout" className="mt-2"><button className="rounded-md border border-black/15 px-3 py-1.5 text-sm">Log out</button></form>
       <div className="mt-6 rounded-lg border border-black/10 bg-white p-5 text-sm">
