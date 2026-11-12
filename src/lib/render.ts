@@ -61,9 +61,10 @@ export function couponPools(html: string): string[] { return [...new Set([...htm
 
 export function instrument(html: string, token: string): string {
   const base = APP();
-  let h = html.replace(/href="(https?:\/\/[^"]+)"/g, (m, url) => {
+  // Only real links (<a>) are click-tracked — not <link> stylesheets such as Google Fonts, which mail apps fetch on open.
+  let h = html.replace(/(<a\b[^>]*?)href="(https?:\/\/[^"]+)"/gi, (m, pre, url) => {
     if (url.startsWith(base + "/u/") || url.startsWith(base + "/t/") || /mailto:|unsubscribe/.test(url)) return m;
-    return `href="${base}/t/c/${token}?u=${encodeURIComponent(url)}"`;
+    return `${pre}href="${base}/t/c/${token}?u=${encodeURIComponent(url)}"`;
   });
   const px = `<img src="${base}/t/o/${token}.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0" />`;
   h = h.includes("</body>") ? h.replace("</body>", px + "</body>") : h + px;
