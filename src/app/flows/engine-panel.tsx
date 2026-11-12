@@ -7,7 +7,7 @@ export function EnginePanel() {
   const [s, setS] = useState<S | null>(null); const [emails, setEmails] = useState("");
   const load = async () => { const j = await (await fetch("/api/engine")).json(); setS(j); setEmails(j.testEmails); };
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
-  const set = async (b: Record<string, unknown>) => { setS(await (await fetch("/api/engine", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) })).json()); };
+  const set = async (b: Record<string, unknown>) => { const res = await fetch("/api/engine", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) }); const j = await res.json(); if (!res.ok) { alert(j.error ?? "Not allowed"); return; } setS(j); };
   if (!s) return null;
   const Mode = ({ m, l, d }: { m: string; l: string; d: string }) => (
     <button onClick={() => { if (m !== "live" || confirm("Go LIVE: real emails go to real customers. Continue?")) set({ mode: m }); }} className={`rounded-md border px-3 py-1.5 text-left text-sm ${s.mode === m ? "border-brand bg-brand/10 text-brand" : "border-black/15 hover:border-black/40"}`}><div className="font-medium">{l}</div><div className="text-xs text-black/50">{d}</div></button>

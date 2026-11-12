@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/settings";
 import { sql } from "@/lib/db";
+import { requireOwner } from "@/lib/auth";
 import { ses } from "@/lib/ses";
 import { GetAccountCommand, GetEmailIdentityCommand, GetConfigurationSetEventDestinationsCommand } from "@aws-sdk/client-sesv2";
 
@@ -25,6 +26,7 @@ export async function GET() {
   return NextResponse.json({ provider: (await getSetting("email_provider")) ?? process.env.EMAIL_PROVIDER ?? "ses", ses: await sesStatus(), sentByProvider: Object.fromEntries(byProv.map(r => [r.p, r.n])), campaignsPaused: (await getSetting("campaigns_paused")) || null, smartHours: Number((await getSetting("smart_send_hours")) ?? 16), mode: (await getSetting("engine_mode")) ?? "shadow", testEmails: (await getSetting("test_emails")) ?? "ryan@bluebellscakery.co.nz", queue: q, runs: r, lastTick: last[0] ? { at: last[0].updated_at, ...JSON.parse(last[0].value) } : null });
 }
 export async function POST(req: NextRequest) {
+  if (!(await requireOwner())) return NextResponse.json({ error: "Only the account owner can change sending settings." }, { status: 403 });
   const b = await req.json();
   if (b.mode && ["shadow", "test", "live"].includes(b.mode)) await setSetting("engine_mode", b.mode);
   if (["resend", "ses"].includes(b.provider)) await setSetting("email_provider", b.provider);

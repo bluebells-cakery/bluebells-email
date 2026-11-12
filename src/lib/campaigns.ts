@@ -3,6 +3,8 @@ import { sql } from "@/lib/db";
 import { translate } from "@/lib/rules";
 import { renderTemplate, instrument, couponPools, type RenderCtx } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
+import { campaignSig, queueSig } from "@/lib/auth";
+import { securityAlert } from "@/lib/alerts";
 
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
 export type Audience = { include: "subscribed" | "segments"; segment_ids: number[]; exclude_segment_ids: number[] };
@@ -27,6 +29,13 @@ export async function queueCampaign(campaignId: number, batch = 500, opts: { sof
   // softLaunch: queue `batch` random recipients from a draft without changing its status; a later full send skips them (not-exists below).
   if (!c || !(opts.softLaunch ? c.status === "draft" : ["scheduled", "sending"].includes(c.status))) return { queued: 0, done: true };
   if (!c.html) throw new Error("campaign has no HTML");
+  // Only campaigns the owner approved from their own login go out; a row changed in the database after approval fails this check.
+  if (!c.approval_sig || c.approval_sig !== campaignSig(c as never)) {
+    if (opts.softLaunch) return { queued: 0, done: true };
+    await sql`update campaigns set status = 'blocked' where id = ${campaignId}`;
+    await securityAlert(`Campaign "${c.name}" (#${campaignId}) was blocked`, "It was set to send without a valid owner approval, or was changed after approval. Nothing was sent. If this wasn't you, change your passwords.");
+    return { queued: 0, done: true };
+  }
   const where = await audienceWhere(c.audience as Audience);
   const rows = await sql.query(`select c.id, c.email, c.first_name, c.unsubscribe_token from contacts c where ${where}
     and not exists (select 1 from send_queue q where q.campaign_id = $1 and q.contact_id = c.id) order by ${opts.softLaunch ? "random()" : "c.id"} limit $2`, [campaignId, batch]);
@@ -38,10 +47,11 @@ export async function queueCampaign(campaignId: number, batch = 500, opts: { sof
     const coupons: Record<string, string> = {};
     for (const p of pools) { try { coupons[p] = await getCoupon(p, r.id); } catch { /* skip */ } }
     const ctx: RenderCtx = { first_name: r.first_name, email: r.email, token, unsubscribe_url: `${APP()}/u/${r.unsubscribe_token}`, coupons };
-    values.push({ contact_id: r.id, campaign_id: campaignId, template_id: c.template_id, token, subject: renderTemplate(c.subject ?? "", ctx), preview_text: c.preview_text, html: instrument(renderTemplate(c.html, ctx), token), from_name: c.from_name ?? "Bluebells Cakery", from_email: c.from_email ?? process.env.SES_FROM_EMAIL ?? null, send_after: c.scheduled_at ?? new Date().toISOString() });
+    const subject = renderTemplate(c.subject ?? "", ctx), html = instrument(renderTemplate(c.html, ctx), token);
+    values.push({ contact_id: r.id, campaign_id: campaignId, template_id: c.template_id, token, subject, preview_text: c.preview_text, html, sig: queueSig({ token, contact_id: r.id, subject, html }), from_name: c.from_name ?? "Bluebells Cakery", from_email: c.from_email ?? process.env.SES_FROM_EMAIL ?? null, send_after: c.scheduled_at ?? new Date().toISOString() });
   }
-  if (values.length) await sql`insert into send_queue (contact_id, campaign_id, template_id, token, subject, preview_text, html, from_name, from_email, send_after, status)
-    select contact_id, campaign_id, template_id, token, subject, preview_text, html, from_name, from_email, send_after::timestamptz, 'queued'
+  if (values.length) await sql`insert into send_queue (contact_id, campaign_id, template_id, token, subject, preview_text, html, sig, from_name, from_email, send_after, status)
+    select contact_id, campaign_id, template_id, token, subject, preview_text, html, sig, from_name, from_email, send_after::timestamptz, 'queued'
     from json_populate_recordset(null::send_queue, ${JSON.stringify(values)}::json)`;
   const done = rows.length < batch;
   if (done && !opts.softLaunch) await sql`update campaigns set recipient_count = (select count(*) from send_queue where campaign_id = ${campaignId}) where id = ${campaignId}`;

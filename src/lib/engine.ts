@@ -5,6 +5,9 @@ import { translate } from "@/lib/rules";
 import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
 import { sendEmail, defaultProvider } from "@/lib/ses";
+import { queueSig } from "@/lib/auth";
+import { securityAlert } from "@/lib/alerts";
+const LEGACY_SIGN_UNTIL = Date.parse("2026-11-12T07:05:37Z");
 import { getSetting, setSetting } from "@/lib/settings";
 
 const APP = () => process.env.APP_URL ?? "https://edm.bluebellscakery.co.nz";
@@ -58,8 +61,9 @@ async function sendStep(run: { id: number; flow_id: number; contact_id: number; 
   for (const pool of couponPools(t.html)) { try { coupons[pool] = await getCoupon(pool, c.id); } catch (e) { console.error("coupon", pool, (e as Error).message); } }
   ctx.coupons = coupons;
   const html = instrument(renderTemplate(t.html, ctx), token);
-  await sql`insert into send_queue (contact_id, flow_id, flow_run_id, template_id, step_id, token, subject, preview_text, html, from_name, from_email, status)
-    values (${c.id}, ${run.flow_id}, ${run.id}, ${tplId}, ${step.id}, ${token}, ${renderTemplate(email.subject ?? t.subject ?? "", ctx)}, ${email.previewText ?? t.preview_text ?? null}, ${html}, ${t.from_name ?? "Bluebells Cakery"}, ${process.env.SES_FROM_EMAIL ?? t.from_email}, 'queued')`;
+  const subject = renderTemplate(email.subject ?? t.subject ?? "", ctx);
+  await sql`insert into send_queue (contact_id, flow_id, flow_run_id, template_id, step_id, token, subject, preview_text, html, sig, from_name, from_email, status)
+    values (${c.id}, ${run.flow_id}, ${run.id}, ${tplId}, ${step.id}, ${token}, ${subject}, ${email.previewText ?? t.preview_text ?? null}, ${html}, ${queueSig({ token, contact_id: c.id, subject, html })}, ${t.from_name ?? "Bluebells Cakery"}, ${process.env.SES_FROM_EMAIL ?? t.from_email}, 'queued')`;
 }
 
 /** Advance all due flow runs. */
@@ -132,13 +136,22 @@ export async function processQueue(limit = 50) {
       (select count(distinct send_id)::int from events where type='bounce' and occurred_at > now() - interval '24 hours') bounces from send_queue`;
   const paused = h.sent > 200 && (h.complaints / h.sent > 0.001 || h.bounces / h.sent > 0.05);
   if (paused) await setSetting("campaigns_paused", `${new Date().toISOString()} complaints ${h.complaints}/${h.sent} bounces ${h.bounces}/${h.sent}`); else await setSetting("campaigns_paused", "");
-  const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token, ca.provider
+  // Hard daily cap (EDM_DAILY_SEND_CAP in Vercel, default 6,000 per rolling 24h). Not stored in the database, so database access alone can't raise it.
+  const cap = Number(process.env.EDM_DAILY_SEND_CAP ?? 6000);
+  const room = Math.max(0, cap - h.sent);
+  if (room === 0) { await securityAlert("Daily send cap reached", `${h.sent.toLocaleString()} emails went out in the last 24 hours, which is the cap (${cap.toLocaleString()}). Sending is paused until that drops. If you didn't send this much, change your passwords.`); return { mode, sent: 0, skipped: 0, capped: true }; }
+  limit = Math.min(limit, room);
+  // One-off: sign rows queued before signatures existed (window closes at LEGACY_SIGN_UNTIL).
+  if (Date.now() < LEGACY_SIGN_UNTIL) for (const r of await sql`select id, token, contact_id, subject, html from send_queue where status = 'queued' and sig is null`) await sql`update send_queue set sig = ${queueSig(r as never)} where id = ${r.id}`;
+  const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.token, q.sig, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token, ca.provider
     from send_queue q join contacts c on c.id = q.contact_id left join campaigns ca on ca.id = q.campaign_id where q.status = 'queued' and q.send_after <= now() ${paused ? sql`and q.campaign_id is null` : sql``} order by q.id limit ${limit}`;
-  let sent = 0, skipped = 0;
+  let sent = 0, skipped = 0, blocked = 0;
   const defProv = await defaultProvider();
   const work = async (r: (typeof rows)[number]) => {
     const suppressed = (await sql`select 1 from suppressions where email = ${r.email}`).length > 0;
     if (!/^[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(String(r.email)) || String(r.email).includes("..")) { await sql`update send_queue set status = 'skipped', error = 'invalid email address' where id = ${r.id}`; skipped++; return; }
+    // Every queued email carries a signature made with a secret that isn't in the database; rows inserted or edited directly are refused.
+    if (!r.sig || r.sig !== queueSig(r as never)) { await sql`update send_queue set status = 'failed', error = 'blocked: not signed by the app' where id = ${r.id}`; blocked++; return; }
     if (r.status !== "subscribed" || suppressed) { await sql`update send_queue set status = 'skipped', error = 'not subscribed / suppressed' where id = ${r.id}`; skipped++; return; }
     if (mode === "shadow" || (mode === "test" && !allow.includes(String(r.email).toLowerCase()))) { await sql`update send_queue set status = 'skipped', error = ${"engine mode " + mode} where id = ${r.id}`; skipped++; return; }
     try {
@@ -152,5 +165,6 @@ export async function processQueue(limit = 50) {
     }
   };
   for (let i = 0; i < rows.length; i += 8) await Promise.all(rows.slice(i, i + 8).map(work));
-  return { mode, sent, skipped };
+  if (blocked) await securityAlert("Emails blocked in the send queue", `${blocked} queued email(s) were not created by the app (missing or wrong signature) and were refused. Nothing from them was sent. If this wasn't expected, change your passwords.`);
+  return { mode, sent, skipped, blocked };
 }
