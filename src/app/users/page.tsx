@@ -18,7 +18,7 @@ export default async function Users() {
       <div className="mt-6 rounded-lg border border-black/10 bg-white p-5 text-sm">
         <h2 className="font-medium">Sending safeguards</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-black/70">
-          <li>Everyone logs in with their own email: we send a 6-digit code to their inbox each time (lasts 30 days per device).</li>
+          <li>Everyone logs in with their own email and password, plus a 6-digit code emailed to them (lasts 30 days per device).</li>
           <li>Only an owner can send or schedule a campaign. Changing the email or audience after that blocks the send.</li>
           <li>Daily cap: {s.n.toLocaleString()} of {cap.toLocaleString()} emails used in the last 24 hours. Sending stops at the cap and you get an alert email.</li>
           <li>Emails added to the queue from outside the app are refused.</li>

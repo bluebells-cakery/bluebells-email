@@ -35,7 +35,7 @@ export function UsersPanel({ me, users }: { me: number; users: U[] }) {
         <button onClick={async () => { await call({ email, name, role }, email); setEmail(""); setName(""); }} className="rounded-md bg-brand px-3 py-1.5 font-medium text-white">Add</button>
       </div>
       {err && <p className="mt-2 text-red-700">{err}</p>}
-      {added && <div className="mt-3 rounded border border-green-600/40 bg-green-50 p-3 text-green-900">Added {added}. Tell them to go to edm.bluebellscakery.co.nz, type their email and use the code we email them.</div>}
+      {added && <div className="mt-3 rounded border border-green-600/40 bg-green-50 p-3 text-green-900">Added {added}. Tell them to go to edm.bluebellscakery.co.nz/login, click "First time or forgot password?" and enter their email.</div>}
     </div>
   );
 }
