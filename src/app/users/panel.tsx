@@ -10,7 +10,8 @@ export function UsersPanel({ me, users }: { me: number; users: U[] }) {
   const call = async (body: Record<string, unknown>, forEmail?: string) => {
     setErr(""); const res = await fetch("/api/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); const j = await res.json();
     if (!res.ok) { setErr(j.error ?? "Failed"); return; }
-    if (forEmail) setAdded(forEmail);
+    if (j.error) setErr(j.error);
+    if (j.invited) setAdded(j.invited);
     r.refresh();
   };
   return (
@@ -24,6 +25,7 @@ export function UsersPanel({ me, users }: { me: number; users: U[] }) {
             <td>{u.id === me ? u.role : <select value={u.role} onChange={e => call({ id: u.id, action: "role", role: e.target.value })} className="rounded border border-black/10 px-1 py-0.5"><option value="staff">staff</option><option value="owner">owner</option></select>}</td>
             <td className="text-xs text-black/60">{u.last_login_at ? new Date(u.last_login_at).toLocaleString("en-NZ") : "never"}</td>
             <td className="space-x-2 text-right text-xs">{u.id !== me && <>
+              {!u.last_login_at && <button onClick={() => call({ id: u.id, action: "invite" })} className="underline">Resend invite</button>}
               <button onClick={() => confirm(`Remove ${u.email}?`) && call({ id: u.id, action: "remove" })} className="text-red-700 underline">Remove</button></>}</td>
           </tr>))}</tbody>
       </table>
@@ -32,10 +34,10 @@ export function UsersPanel({ me, users }: { me: number; users: U[] }) {
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" className="rounded border border-black/10 px-2 py-1.5" />
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="flex-1 rounded border border-black/10 px-2 py-1.5" />
         <select value={role} onChange={e => setRole(e.target.value)} className="rounded border border-black/10 px-2 py-1.5"><option value="staff">Staff (can build, can&apos;t send)</option><option value="owner">Owner (can send)</option></select>
-        <button onClick={async () => { await call({ email, name, role }, email); setEmail(""); setName(""); }} className="rounded-md bg-brand px-3 py-1.5 font-medium text-white">Add</button>
+        <button onClick={async () => { if (!email.trim()) { setErr("Enter their email."); return; } await call({ email, name, role }, email); setEmail(""); setName(""); }} className="rounded-md bg-brand px-3 py-1.5 font-medium text-white">Add</button>
       </div>
       {err && <p className="mt-2 text-red-700">{err}</p>}
-      {added && <div className="mt-3 rounded border border-green-600/40 bg-green-50 p-3 text-green-900">Added {added}. Tell them to go to edm.bluebellscakery.co.nz/login, click "First time or forgot password?" and enter their email.</div>}
+      {added && <div className="mt-3 rounded border border-green-600/40 bg-green-50 p-3 text-green-900">Invite emailed to {added} with a link and the steps to set up their login.</div>}
     </div>
   );
 }
