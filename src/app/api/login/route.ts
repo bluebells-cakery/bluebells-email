@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
+import { randomInt, createHash } from "node:crypto";
 import { sql } from "@/lib/db";
 import { PENDING, makeToken } from "@/lib/session";
-import { checkPassword, safeEq } from "@/lib/auth";
+import { sendEmail } from "@/lib/ses";
 
 const cookie = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" };
+const hash = (s: string) => createHash("sha256").update((process.env.EDM_SESSION_SECRET ?? "") + ":" + s).digest("hex");
+
+/** Step 1: email in → 6-digit code emailed (only to people added on the Users page). */
 export async function POST(req: NextRequest) {
   const form = await req.formData();
-  const email = String(form.get("email") || "").trim().toLowerCase(), pw = String(form.get("password") || "");
+  const email = String(form.get("email") || "").trim().toLowerCase();
   const next = String(form.get("next") || "/dashboard");
-  const fail = (e: string) => NextResponse.redirect(new URL(`/login?error=${e}`, req.url), 303);
   const [u] = await sql`select * from users where email = ${email}`;
-  if (!u) return fail("1");
-  if (u.locked_until && new Date(u.locked_until) > new Date()) return fail("locked");
-  // First login for the owner: the old team password lets them set their own password + phone code, once.
-  const bootstrap = !u.pw_hash && u.role === "owner" && !!process.env.EDM_PASSWORD && safeEq(pw, process.env.EDM_PASSWORD);
-  if (!bootstrap && !checkPassword(pw, u.pw_hash)) {
-    await sql`update users set failed_count = failed_count + 1, locked_until = case when failed_count + 1 >= 5 then now() + interval '15 minutes' else locked_until end where id = ${u.id}`;
-    return fail("1");
+  // Same next screen whether or not the email is on the list, so the form can't be used to find out who has a login.
+  const res = NextResponse.redirect(new URL(`/login/code?next=${encodeURIComponent(next)}&e=${encodeURIComponent(email)}`, req.url), 303);
+  if (!u) return res;
+  if (u.locked_until && new Date(u.locked_until) > new Date()) return NextResponse.redirect(new URL("/login?error=locked", req.url), 303);
+  const recent = u.login_code_sent_at && Date.now() - new Date(u.login_code_sent_at).getTime() < 30_000;
+  if (!recent) {
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    await sql`update users set login_code_hash = ${hash(code)}, login_code_expires = now() + interval '10 minutes', login_code_sent_at = now() where id = ${u.id}`;
+    const html = `<div style="font-family:Arial,sans-serif;color:#262967;font-size:15px;line-height:1.5"><p>Your Bluebells EDM login code:</p><p style="font-size:32px;letter-spacing:6px;font-weight:bold;margin:12px 0">${code}</p><p style="color:#666;font-size:13px">It works once, for 10 minutes. If you didn't try to log in, ignore this email.</p></div>`;
+    try { await sendEmail({ to: u.email, subject: `Your Bluebells EDM login code: ${code}`, html, text: `Your Bluebells EDM login code: ${code}\nIt works once, for 10 minutes.`, fromName: "Bluebells EDM" }); }
+    catch (e) { console.error("login code", (e as Error).message); return NextResponse.redirect(new URL("/login?error=send", req.url), 303); }
   }
-  if (!u.totp_enabled) {
-    const token = randomBytes(24).toString("hex");
-    await sql`update users set setup_token = ${token}, setup_expires = now() + interval '30 minutes' where id = ${u.id}`;
-    return NextResponse.redirect(new URL(`/login/setup?token=${token}`, req.url), 303);
-  }
-  const res = NextResponse.redirect(new URL(`/login/code?next=${encodeURIComponent(next)}`, req.url), 303);
   res.cookies.set(PENDING, await makeToken(u.id, 10 / 1440, "p"), { ...cookie, maxAge: 600 });
   return res;
 }

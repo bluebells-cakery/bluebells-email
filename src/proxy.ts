@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { COOKIE, validToken } from "@/lib/session";
 
 /**
- * Personal logins for the EDM app (email + password + phone code). Everything is private except what the public website, SES, Shopify and cron call.
+ * Personal logins for the EDM app (email + emailed 6-digit code). Everything is private except what the public website, SES, Shopify and cron call.
  * Session = HMAC-signed cookie carrying the user id (EDM_SESSION_SECRET).
  */
 const PUBLIC = [
-  /^\/login(\/(code|setup))?$/, /^\/api\/login(\/(code|setup))?$/, /^\/api\/logout$/,
+  /^\/login(\/code)?$/, /^\/api\/login(\/code)?$/, /^\/api\/logout$/,
   /^\/f\/[^/]+$/,                            // embeddable popup script
   /^\/api\/forms\/[^/]+\/(view|submit)$/,    // popup events + submissions
   /^\/(t|u|v|r)\//,                          // tracking, unsubscribe, view-in-browser, review form
