@@ -24,7 +24,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [picker, setPicker] = useState<((url: string) => void) | null>(null);
-  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [media, setMedia] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]);
+  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [media, setMedia] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]); const [cropTotal, setCropTotal] = useState(0);
   const [assist, setAssist] = useState(false);
 
   const saveRef = useRef<(then?: () => void) => void>(() => {});
@@ -174,7 +174,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         <div className="flex items-center gap-2 border-b border-black/10 px-3 py-2"><span className="text-sm font-medium">Media library</span><span className="text-xs text-black/50">click an image to add it to the email</span><div className="flex-1" /><button onClick={() => setMedia(false)} className="text-xs text-black/50 hover:text-black">Close</button></div>
         <div className="min-h-0 flex-1 overflow-hidden"><MediaLibrary compact onSelect={(m: MediaItem) => { const w = m.width ?? 600, h = m.height ?? 600; insert([imageRow(m.url, w, h, w >= 700 ? { maxWidth: "100%", padding: "0px" } : { maxWidth: Math.min(w, 300), padding: "20px" })]); }} /></div>
       </div>}
-      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => setCropQ(q => [...q, ...items])} />}
+      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => { setCropQ(items); setCropTotal(items.length); }} />}
       {pics && !cropPic && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPics(null)}>
         <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
           <h2 className="text-lg font-semibold">Which image do you want to crop?</h2>
@@ -190,10 +190,12 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
       {cropPic && <TrimCropper key={"c" + cropPic.url} url={cropPic.url} doneLabel="Save crop"
         onDone={m => { applyCrop(cropPic, m); setCropPic(null); setPics(null); }}
         onCancel={() => { setCropPic(null); setPics(null); }} />}
-      {cropQ[0] && <TrimCropper key={cropQ[0].url} url={cropQ[0].url}
-        onDone={m => { insert([imageRow(m.url, m.width, m.height, { maxWidth: "100%", padding: "0px" })]); setCropQ(q => q.slice(1)); }}
+      {cropQ[0] && <TrimCropper key={cropQ[0].url} url={cropQ[0].url} allowAgain
+        progress={cropTotal > 1 ? `Page ${cropTotal - cropQ.length + 1} of ${cropTotal}` : undefined}
+        onDone={(m, again) => { insert([imageRow(m.url, m.width, m.height, { maxWidth: "100%", padding: "0px" })]); if (!again) setCropQ(q => q.slice(1)); }}
         onWhole={() => { const m = cropQ[0]; insert([imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: "100%", padding: "0px" })]); setCropQ(q => q.slice(1)); }}
-        onCancel={() => setCropQ(q => q.slice(1))} />}
+        onSkip={() => setCropQ(q => q.slice(1))}
+        onCancel={() => setCropQ([])} />}
       {assist && <AssistantPanel onInsert={insert} onClose={() => setAssist(false)} />}
       </div>
       {picker && (
