@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { fluidDesign, fluidHtml } from "@/lib/fluid-images";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,7 +10,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, design, html } = await req.json();
+  const body = await req.json();
+  const name = body.name, design = body.design ? fluidDesign(body.design) : body.design, html = typeof body.html === "string" ? fluidHtml(body.html) : body.html;
   await sql`update templates set
     name = coalesce(${name ?? null}, name),
     design = coalesce(${design ? JSON.stringify(design) : null}::jsonb, design),
