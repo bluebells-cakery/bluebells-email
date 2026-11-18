@@ -75,8 +75,8 @@ export const roundedImageRow = (url: string, width: number, height: number, opts
 
 /** Standard footer: address, stores, unsubscribe. */
 export const footerRow = () => rowBase([col([
-  text(`<p style="line-height: 150%;"><strong>Bluebells Cakery</strong><br>Kingsland · Commercial Bay · Auckland Airport<br><a href="${SITE_URL}" target="_blank" style="color:${NAVY};">${SITE_URL.replace("https://", "")}</a></p>`, { size: 12, padding: "20px 20px 6px" }),
-  text(`<p style="line-height: 150%;">You're receiving this because you signed up at Bluebells Cakery.<br><a href="{{unsubscribe_url}}" style="color:${NAVY};">Unsubscribe</a> · Bluebells Cakery Limited, Auckland, New Zealand</p>`, { size: 11, color: "#6b6b7a", padding: "0px 20px 24px" }),
+  text(`<p style="line-height: 150%;"><strong>Bluebells Cakery</strong> · <a href="${SITE_URL}" target="_blank" style="color:${NAVY};">${SITE_URL.replace("https://", "")}</a><br>Kingsland · Commercial Bay · Auckland Airport</p>`, { size: 12, padding: "20px 20px 6px" }),
+  text(`<p style="line-height: 150%;">You're receiving this because you signed up at Bluebells Cakery. <a href="{{unsubscribe_url}}" style="color:${NAVY};">Unsubscribe</a><br>Bluebells Cakery Limited, Auckland, New Zealand</p>`, { size: 11, color: "#6b6b7a", padding: "0px 20px 24px" }),
 ])], { columnsBackgroundColor: CREAM });
 
 /** Insert rows into an exported Unlayer design (appends at the end unless index given). */
