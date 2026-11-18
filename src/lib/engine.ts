@@ -4,7 +4,7 @@ import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
 import { translate } from "@/lib/rules";
 import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx, withPreheader } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
-import { sendEmail, defaultProvider } from "@/lib/ses";
+import { sendEmail, defaultProvider, resolveProvider } from "@/lib/ses";
 import { queueSig } from "@/lib/auth";
 import { securityAlert } from "@/lib/alerts";
 const LEGACY_SIGN_UNTIL = Date.parse("2026-11-12T07:05:37Z");
@@ -155,8 +155,9 @@ export async function processQueue(limit = 50) {
     if (r.status !== "subscribed" || suppressed) { await sql`update send_queue set status = 'skipped', error = 'not subscribed / suppressed' where id = ${r.id}`; skipped++; return; }
     if (mode === "shadow" || (mode === "test" && !allow.includes(String(r.email).toLowerCase()))) { await sql`update send_queue set status = 'skipped', error = ${"engine mode " + mode} where id = ${r.id}`; skipped++; return; }
     try {
-      const id = await sendEmail({ to: r.email, subject: r.subject, html: r.html, text: textVersion(r.html), fromName: r.from_name ?? undefined, fromEmail: r.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", unsubscribeUrl: `${APP()}/u/${r.unsubscribe_token}`, tags: { flow: String(r.flow_id ?? ""), campaign: String(r.campaign_id ?? "") }, provider: r.provider ?? defProv });
-      await sql`update send_queue set status = 'sent', sent_at = now(), ses_message_id = ${id}, provider = ${r.provider ?? defProv}, attempts = attempts + 1 where id = ${r.id}`;
+      const prov = resolveProvider(r.provider, r.contact_id) ?? defProv;
+      const id = await sendEmail({ to: r.email, subject: r.subject, html: r.html, text: textVersion(r.html), fromName: r.from_name ?? undefined, fromEmail: r.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", unsubscribeUrl: `${APP()}/u/${r.unsubscribe_token}`, tags: { flow: String(r.flow_id ?? ""), campaign: String(r.campaign_id ?? "") }, provider: prov });
+      await sql`update send_queue set status = 'sent', sent_at = now(), ses_message_id = ${id}, provider = ${prov}, attempts = attempts + 1 where id = ${r.id}`;
       await sql`update contacts set last_sent_at = now() where id = ${r.contact_id}`;
       await sql`insert into events (contact_id, send_id, flow_id, campaign_id, type, source) values (${r.contact_id}, ${r.id}, ${r.flow_id}, ${r.campaign_id}, 'sent', 'app')`;
       sent++;

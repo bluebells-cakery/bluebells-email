@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db";
 import { renderTemplate, instrument, textVersion, withPreheader } from "@/lib/render";
-import { sendEmail } from "@/lib/ses";
+import { sendEmail, fixedProvider } from "@/lib/ses";
 import { getSetting } from "@/lib/settings";
 
 export const maxDuration = 60;
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   for (const addr of to) {
     const token = "test-" + randomBytes(6).toString("hex");
     const html = instrument(withPreheader(renderTemplate(t.html, { first_name: "Ryan", email: addr, token, unsubscribe_url: "https://edm.bluebellscakery.co.nz/u/test", coupons: { WELCOME10: "TEST10" }, products: [] }), c?.preview_text || t.preview_text), token);
-    try { await sendEmail({ to: addr, subject: `[TEST] ${subject}`, html, text: textVersion(html), fromName: c?.from_name ?? t.from_name ?? "Bluebells Cakery", fromEmail: c?.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", provider: c?.provider ?? undefined }); results.push({ to: addr }); }
+    try { await sendEmail({ to: addr, subject: `[TEST] ${subject}`, html, text: textVersion(html), fromName: c?.from_name ?? t.from_name ?? "Bluebells Cakery", fromEmail: c?.from_email ?? undefined, replyTo: "orders@bluebellscakery.co.nz", provider: fixedProvider(c?.provider) }); results.push({ to: addr }); }
     catch (e) { results.push({ to: addr, error: (e as Error).message }); }
   }
   return NextResponse.json({ ok: results.every(r => !r.error), results });

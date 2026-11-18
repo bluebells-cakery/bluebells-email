@@ -26,6 +26,16 @@ export async function defaultProvider(): Promise<Provider> {
   const p: Provider = (v ?? process.env.EMAIL_PROVIDER ?? "ses") === "resend" ? "resend" : "ses";
   cached = { v: p, at: Date.now() }; return p;
 }
+/** Campaign "Send via" values: null (default), "resend", "ses", or a warm-up split "ses10" / "ses25" / "ses50" (= that % via Amazon SES, rest via Resend). */
+export const PROVIDER_CHOICES = ["resend", "ses", "ses10", "ses25", "ses50"];
+/** Which provider this recipient gets. The split is by contact id, so the same person always lands on the same side. */
+export function resolveProvider(setting: string | null | undefined, contactId: number | string): Provider | null {
+  if (setting === "ses" || setting === "resend") return setting;
+  const m = /^ses(\d+)$/.exec(setting ?? ""); if (!m) return null;
+  return Number(contactId) % 100 < Number(m[1]) ? "ses" : "resend";
+}
+/** For test sends: only a fixed choice overrides the default (a split has no single answer). */
+export const fixedProvider = (setting: string | null | undefined): Provider | undefined => (setting === "ses" || setting === "resend" ? setting : undefined);
 export const providerLabel = (p: string | null | undefined) => (p === "ses" ? "Amazon SES" : p === "resend" ? "Resend" : "Default");
 
 /** Sends via a.provider, else the app default (Resend and SES both live). */

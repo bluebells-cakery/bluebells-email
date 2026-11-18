@@ -84,7 +84,7 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
           <h2 className="font-medium">4. Send</h2>
           <label className="mt-3 block"><span className="text-xs uppercase tracking-wide text-black/50">Send via</span>
             <select disabled={locked} value={c.provider ?? ""} onChange={e => { const provider = e.target.value || null; setC({ ...c, provider }); patch({ provider: provider ?? "" }); }} className="mt-1 w-full rounded border border-black/10 px-2 py-1.5">
-              <option value="">Default (set on Flows page)</option><option value="resend">Resend</option><option value="ses">Amazon SES</option>
+              <option value="">Default (set on Flows page)</option><option value="resend">Resend</option><option value="ses10">Resend, with 10% via Amazon SES (warm-up)</option><option value="ses25">Resend, with 25% via Amazon SES (warm-up)</option><option value="ses50">Half Resend, half Amazon SES</option><option value="ses">Amazon SES</option>
             </select></label>
           {c.status === "draft" && (<>
             <button onClick={() => act("send")} disabled={busy || !c.html || !c.subject} className="mt-3 w-full rounded-md bg-brand px-4 py-2 font-medium text-white disabled:opacity-40">{busy ? "Starting…" : "Send now"}</button>
