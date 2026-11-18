@@ -9,7 +9,7 @@ const nz = (n: number) => "$" + Math.round(n).toLocaleString("en-NZ");
 const pct = (a: number, b: number) => (b ? ((100 * a) / b).toFixed(1) + "%" : "—");
 
 export default async function CampaignsPage() {
-  const drafts = await sql`select c.id, c.name, c.subject, c.status, c.scheduled_at, c.recipient_count, c.updated_at,
+  const drafts = await sql`select c.id, c.name, c.subject, c.status, c.template_id, c.scheduled_at, c.recipient_count, c.updated_at,
       (select count(*)::int from send_queue q where q.campaign_id = c.id and q.status = 'sent') sent_so_far
     from campaigns c where c.status in ('draft','scheduled','sending') order by c.updated_at desc`;
   const sent = await byCampaign(365);
@@ -28,7 +28,7 @@ export default async function CampaignsPage() {
       {drafts.length > 0 && (
         <table className="mt-6 w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-black/10 bg-white text-sm">
           <thead className="bg-black/[.03] text-left text-xs uppercase tracking-wide text-black/50"><tr><th className="px-4 py-2">Campaign</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Scheduled</th><th className="px-4 py-2 text-right">Recipients</th><th className="px-4 py-2 text-right">Actions</th></tr></thead>
-          <tbody>{drafts.map(c => <tr key={c.id} className="border-t border-black/5"><td className="px-4 py-3"><Link href={`/campaigns/${c.id}`} className="font-medium hover:text-brand">{c.name}</Link><div className="text-xs text-black/50">{c.subject}</div></td><td className="px-4 py-3"><Badge s={c.status} />{c.status === "draft" && c.sent_so_far > 0 && <span className="ml-1 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">soft launch · {c.sent_so_far} sent</span>}</td><td className="px-4 py-3 text-black/60">{c.scheduled_at ? new Date(c.scheduled_at).toLocaleString("en-NZ") : c.status === "draft" ? "—" : "now"}</td><td className="px-4 py-3 text-right tabular-nums">{c.recipient_count?.toLocaleString() ?? (c.sent_so_far > 0 ? `${c.sent_so_far} so far` : "—")}</td><td className="px-4 py-3"><RowActions id={Number(c.id)} status={c.status} name={c.name} /></td></tr>)}</tbody>
+          <tbody>{drafts.map(c => <tr key={c.id} className="border-t border-black/5"><td className="px-4 py-3"><Link href={`/campaigns/${c.id}`} className="font-medium hover:text-brand">{c.name}</Link><div className="text-xs text-black/50">{c.subject}</div></td><td className="px-4 py-3"><Badge s={c.status} />{c.status === "draft" && c.sent_so_far > 0 && <span className="ml-1 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">soft launch · {c.sent_so_far} sent</span>}</td><td className="px-4 py-3 text-black/60">{c.scheduled_at ? new Date(c.scheduled_at).toLocaleString("en-NZ") : c.status === "draft" ? "—" : "now"}</td><td className="px-4 py-3 text-right tabular-nums">{c.recipient_count?.toLocaleString() ?? (c.sent_so_far > 0 ? `${c.sent_so_far} so far` : "—")}</td><td className="px-4 py-3"><RowActions id={Number(c.id)} status={c.status} name={c.name} templateId={c.template_id ? Number(c.template_id) : null} /></td></tr>)}</tbody>
         </table>)}
       <h2 className="mt-10 text-lg font-semibold">Sent <span className="text-sm font-normal text-black/50">— last 12 months, including Klaviyo-era campaigns</span></h2>
       {sent.length === 0 ? <p className="mt-2 text-sm text-black/50">Nothing sent yet.</p> : (

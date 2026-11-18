@@ -53,16 +53,20 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
           </section>
           <section className="rounded-lg border border-black/10 bg-white p-5">
             <h2 className="font-medium">2. Email</h2>
-            <div className="mt-3 flex items-center gap-3">
-              <select disabled={locked} value={c.template_id ?? ""} onChange={async e => { const id = Number(e.target.value) || null; await patch({ template_id: id }); const t = templates.find(x => x.id === id); setC({ ...c, template_id: id, html: id ? "x" : null, subject: c.subject || t?.subject || null }); r.refresh(); }} className="min-w-0 flex-1 rounded border border-black/10 px-3 py-2 text-sm">
-                <option value="">Choose a template…</option>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {c.template_id
+                ? <Link href={`/templates/${c.template_id}?campaign=${c.id}`} className={`rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${locked ? "pointer-events-none opacity-40" : ""}`}>Open editor</Link>
+                : <span className="text-sm text-black/60">No email yet — pick a template below.</span>}
+              {c.template_id && <a href={`/api/campaigns/${c.id}/preview`} target="_blank" className="rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40">Preview</a>}
+            </div>
+            {!locked && <div className="mt-3 flex items-center gap-2">
+              <select disabled={locked} value={c.template_id ?? ""} onChange={async e => { const id = Number(e.target.value) || null; await patch({ template_id: id }); const t = templates.find(x => x.id === id); setC({ ...c, template_id: id, html: id ? "x" : null, subject: c.subject || t?.subject || null }); r.refresh(); }} className="min-w-0 flex-1 rounded border border-black/10 px-2 py-1 text-xs text-black/70">
+                <option value="">Use a different template…</option>
                 <optgroup label="My templates">{templates.filter(t => t.kind === "unlayer").map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
                 <optgroup label="Past Klaviyo campaigns">{templates.filter(t => t.kind !== "unlayer").map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
               </select>
-              {c.template_id && <Link href={`/templates/${c.template_id}?campaign=${c.id}`} className="whitespace-nowrap text-sm text-brand hover:underline">Open in editor</Link>}
-              {c.template_id && <a href={`/api/campaigns/${c.id}/preview`} target="_blank" className="whitespace-nowrap text-sm text-brand hover:underline">Preview</a>}
-            </div>
-            <p className="mt-2 text-xs text-black/50">Edits made via “Open in editor” are pulled into this campaign automatically when you save or go back.</p>
+            </div>}
+            <p className="mt-2 text-xs text-black/50">Changes you save in the editor are pulled into this campaign automatically.</p>
           </section>
           <section className="rounded-lg border border-black/10 bg-white p-5">
             <h2 className="font-medium">3. Audience</h2>
