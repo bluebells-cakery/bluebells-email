@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 export type Cropped = { url: string; width: number; height: number };
 type Edge = "t" | "b" | "l" | "r" | "tl" | "tr" | "bl" | "br";
 
-/** Crop an image by dragging its four edges in (for trimming Canva blocks). Saves the result to the media library as a JPEG, max 1200px wide. */
+/** Crop an image by dragging its four edges in (for trimming Canva blocks). Saves the result to the media library as a JPEG, max 1200px wide.
+ *  onWhole present = show "Add whole image"; it still goes through the same JPEG step (via onDone) so emails don't carry multi-MB PNGs. */
 export function TrimCropper({ url, onDone, onWhole, onCancel, doneLabel = "Add cropped" }: { url: string; onDone: (c: Cropped) => void; onWhole?: () => void; onCancel: () => void; doneLabel?: string }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
-  const [c, setC] = useState({ t: 0, b: 1, l: 0, r: 1 }); // fractions of the image
+  const [crop, setC] = useState({ t: 0, b: 1, l: 0, r: 1 }); // fractions of the image
+  const c = crop;
   const box = useRef<HTMLDivElement>(null); const drag = useRef<Edge | null>(null);
 
   useEffect(() => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => setImg(i); i.onerror = () => setErr("Couldn't load the image to crop."); i.src = url + (url.includes("?") ? "&" : "?") + "crop=1"; }, [url]);
@@ -25,8 +27,9 @@ export function TrimCropper({ url, onDone, onWhole, onCancel, doneLabel = "Add c
   };
   const start = (edge: Edge) => (e: React.PointerEvent) => { drag.current = edge; (e.target as Element).setPointerCapture(e.pointerId); e.preventDefault(); };
 
-  const finish = async () => {
+  const finish = async (whole = false) => {
     if (!img) return; setBusy(true); setErr("");
+    const c = whole ? { t: 0, b: 1, l: 0, r: 1 } : crop;
     try {
       const sx = c.l * img.naturalWidth, sy = c.t * img.naturalHeight, sw = (c.r - c.l) * img.naturalWidth, sh = (c.b - c.t) * img.naturalHeight;
       const k = Math.min(1, 1200 / sw); const ow = Math.round(sw * k), oh = Math.round(sh * k);
@@ -73,8 +76,8 @@ export function TrimCropper({ url, onDone, onWhole, onCancel, doneLabel = "Add c
           </div></div>)}
         {err && img && <p className="mt-2 text-sm text-red-700">{err}</p>}
         <div className="mt-4 flex items-center gap-2">
-          <button disabled={!img || busy} onClick={finish} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : doneLabel}</button>
-          {onWhole && <button disabled={busy} onClick={onWhole} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40">Add whole image</button>}
+          <button disabled={!img || busy} onClick={() => finish()} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : doneLabel}</button>
+          {onWhole && <button disabled={busy} onClick={() => img ? finish(true) : onWhole()} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40">Add whole image</button>}
           <button disabled={busy} onClick={() => setC({ t: 0, b: 1, l: 0, r: 1 })} className="text-sm text-black/50 hover:text-black">Reset</button>
           <div className="flex-1" />
           <button disabled={busy} onClick={onCancel} className="text-sm text-black/50 hover:text-black">Cancel</button>

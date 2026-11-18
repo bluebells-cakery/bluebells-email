@@ -43,7 +43,7 @@ export async function importDesign(designId: string) {
   const d = await api<{ design: CanvaDesign }>(`/designs/${designId}`);
   const title = (d.design.title || `canva-${designId}`).trim();
   const job = await api<{ job: { id: string; status: string; urls?: string[]; error?: { message: string } } }>(`/exports`, {
-    method: "POST", body: JSON.stringify({ design_id: designId, format: { type: "png", lossless: true } }) });
+    method: "POST", body: JSON.stringify({ design_id: designId, format: { type: "png", lossless: true, width: 1200 } }) }); // 1200px = 2x the 600px email width, so it stays sharp on phones and retina screens
   let j = job.job;
   for (let i = 0; i < 40 && j.status === "in_progress"; i++) { await new Promise(r => setTimeout(r, 1500)); j = (await api<{ job: typeof j }>(`/exports/${j.id}`)).job; }
   if (j.status !== "success" || !j.urls?.length) throw new Error(j.error?.message ?? "Canva export failed");
