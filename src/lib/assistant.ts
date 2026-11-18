@@ -89,7 +89,7 @@ async function specToRows(rows: Item[]): Promise<Row[]> {
       }
       columns.push({ contents, values: { backgroundColor: c.background ?? "", padding: "0px", border: {} } });
     }
-    out.push({ cells: columns.map(() => 1), columns, values: { backgroundColor: r.background ?? "", columnsBackgroundColor: "", padding: r.padding ?? "10px", hideDesktop: false, hideMobile: false, noStackMobile: false } });
+    out.push({ cells: columns.map(() => 1), columns, values: { backgroundColor: "", columnsBackgroundColor: r.background ?? "", padding: r.padding ?? "10px", hideDesktop: false, hideMobile: false, noStackMobile: false } });
   }
   return out;
 }

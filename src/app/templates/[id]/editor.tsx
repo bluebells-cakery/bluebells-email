@@ -9,6 +9,7 @@ import { AssistantPanel } from "@/components/assistant-panel";
 import { insertRows } from "@/lib/blocks";
 import { CanvaPanel, type CanvaItem } from "@/components/canva-panel";
 import { TrimCropper } from "@/components/trim-cropper";
+import { fluidDesign } from "@/lib/fluid-images";
 import { imageRow } from "@/lib/blocks";
 
 const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: i === 0 ? "brand_colors" : `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex), default: i === 0 }));
@@ -108,14 +109,8 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const autoT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onReady: EmailEditorProps["onReady"] = (u) => {
     if (design && Object.keys(design).length) {
-      // Wide images fixed at e.g. 600px can't shrink on phones — switch them to fill the email width instead, then re-save.
-      let fixed = 0;
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      ((design as any).body?.rows ?? []).forEach((r: any) => (r.columns ?? []).forEach((c: any) => (c.contents ?? []).forEach((x: any) => {
-        const mw = x.type === "image" ? String(x.values?.src?.maxWidth ?? "") : "";
-        if (/^\d+px$/.test(mw) && parseInt(mw) >= 480 && (r.columns ?? []).length === 1) { x.values.src.maxWidth = "100%"; fixed++; }
-      })));
-      /* eslint-enable @typescript-eslint/no-explicit-any */
+      // Repair older designs on open (fixed-width wide images, full-width colour bands), then re-save so the HTML matches.
+      const before = JSON.stringify(design); fluidDesign(design, { bands: true }); const fixed = JSON.stringify(design) !== before;
       u.loadDesign(design as never);
       if (fixed) setTimeout(() => saveRef.current(), 2500);
     }

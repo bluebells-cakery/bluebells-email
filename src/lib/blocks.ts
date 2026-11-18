@@ -5,6 +5,7 @@ const NAVY = "#262967", CREAM = "#fffdf8", PINK = "#e4c5e0";
 const HEAD = "'Crimson Pro', Georgia, 'Times New Roman', serif";
 const BODY = "'Poppins', Arial, Helvetica, sans-serif";
 
+// Block colours go on the 600px content area (columnsBackgroundColor), never the full-width row, so no coloured bands run out to the sides.
 const rowBase = (columns: unknown[], values: Row = {}): Row => ({
   cells: columns.map(() => 1), columns,
   values: { backgroundColor: "", columnsBackgroundColor: "", padding: "0px", hideDesktop: false, hideMobile: false, noStackMobile: false, ...values },
@@ -42,7 +43,7 @@ export const button = (label: string, href: string, opts: { bg?: string; color?:
 
 /** Full-width wave image (the PNG already rendered with the correct colours). */
 export const waveRow = (url: string, width: number, height: number, behindColour: string) =>
-  rowBase([col([image(url, width, height, { fullWidth: true })])], { backgroundColor: behindColour, padding: "0px" });
+  rowBase([col([image(url, width, height, { fullWidth: true })])], { columnsBackgroundColor: behindColour, padding: "0px" });
 
 export type Product = { title: string; url: string; image: string | null; price: string; compareAt: string | null };
 /** 1–3 product cards side by side. */
@@ -53,7 +54,7 @@ export const productRow = (products: Product[], opts: { bg?: string; cardBg?: st
     text(`<p style="line-height: 130%;">${p.compareAt ? `<s style="color:#919191">$${p.compareAt}</s> ` : ""}$${p.price}</p>`, { size: 14, padding: "0px 10px 8px" }),
     button(opts.buttonText ?? "Order now", p.url, { padding: "0px 10px 14px" }),
   ], { backgroundColor: opts.cardBg ?? "", padding: "10px" }));
-  return rowBase(columns, { backgroundColor: opts.bg ?? "", padding: "20px 10px", columnsBackgroundColor: "" });
+  return rowBase(columns, { columnsBackgroundColor: opts.bg ?? "", padding: "20px 10px" });
 };
 
 /** Centered image (badge, sticker, logo) with optional link. */
@@ -61,7 +62,7 @@ export const imageRow = (url: string, width: number, height: number, opts: { hre
   const img = image(url, width, height, { href: opts.href, padding: opts.padding ?? "20px" });
   // "100%" = fills the email width and shrinks on phones. A px number is a fixed size, so only use it for small images (badges).
   if (opts.maxWidth) (img.values.src as Record<string, unknown>).maxWidth = opts.maxWidth === "100%" ? "100%" : `${opts.maxWidth}px`;
-  return rowBase([col([img])], { backgroundColor: opts.bg ?? "" });
+  return rowBase([col([img])], { columnsBackgroundColor: opts.bg ?? "" });
 };
 
 /** Photo with soft corners (Unlayer's image tool has no radius) — an HTML block; Outlook desktop shows square corners. */
@@ -69,14 +70,14 @@ export const roundedImageRow = (url: string, width: number, height: number, opts
   const r = opts.radius ?? 16, w = Math.min(width, opts.maxWidth ?? 520);
   const img = `<img src="${url}" width="${w}" alt="" style="display:block;width:100%;max-width:${w}px;height:auto;border-radius:${r}px;-webkit-border-radius:${r}px;" />`;
   const html = `<div style="text-align:center;font-size:0;line-height:0">${opts.href ? `<a href="${opts.href}" target="_blank" style="display:inline-block;max-width:${w}px;width:100%">${img}</a>` : `<div style="display:inline-block;max-width:${w}px;width:100%">${img}</div>`}</div>`;
-  return rowBase([col([{ type: "html", values: { containerPadding: opts.padding ?? "20px 40px", html, hideDesktop: false, hideMobile: false } }])], { backgroundColor: opts.bg ?? "" });
+  return rowBase([col([{ type: "html", values: { containerPadding: opts.padding ?? "20px 40px", html, hideDesktop: false, hideMobile: false } }])], { columnsBackgroundColor: opts.bg ?? "" });
 };
 
 /** Standard footer: address, stores, unsubscribe. */
 export const footerRow = () => rowBase([col([
   text(`<p style="line-height: 150%;"><strong>Bluebells Cakery</strong><br>Kingsland · Commercial Bay · Auckland Airport<br><a href="${SITE_URL}" target="_blank" style="color:${NAVY};">${SITE_URL.replace("https://", "")}</a></p>`, { size: 12, padding: "20px 20px 6px" }),
   text(`<p style="line-height: 150%;">You're receiving this because you signed up at Bluebells Cakery.<br><a href="{{unsubscribe_url}}" style="color:${NAVY};">Unsubscribe</a> · Bluebells Cakery Limited, Auckland, New Zealand</p>`, { size: 11, color: "#6b6b7a", padding: "0px 20px 24px" }),
-])], { backgroundColor: CREAM });
+])], { columnsBackgroundColor: CREAM });
 
 /** Insert rows into an exported Unlayer design (appends at the end unless index given). */
 export function insertRows(design: Record<string, unknown>, rows: Row[], index?: number) {
