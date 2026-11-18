@@ -21,10 +21,37 @@ export function TrimCropper({ url, onDone, onWhole, onCancel, onSkip, allowAgain
 
   useEffect(() => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => setImg(i); i.onerror = () => setErr("Couldn't load the image to crop."); i.src = url + (url.includes("?") ? "&" : "?") + "crop=1"; }, [url]);
 
+  // Straight lines in the picture (where one block ends and the next starts). Handles snap onto them.
+  const [snaps, setSnaps] = useState<{ h: number[]; v: number[] }>({ h: [], v: [] }); const [snapped, setSnapped] = useState<{ x: boolean; y: boolean }>({ x: false, y: false });
+  useEffect(() => {
+    if (!img) return;
+    try {
+      const W = img.naturalWidth, H = img.naturalHeight; const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+      const g = cv.getContext("2d", { willReadFrequently: true })!; g.drawImage(img, 0, 0); const d = g.getImageData(0, 0, W, H).data;
+      // A line = a row (or column) where most pixels change sharply compared with 2px earlier, and its neighbours don't.
+      const run = (len: number, other: number, idx: (i: number, j: number) => number) => {
+        const step = Math.max(1, Math.floor(other / 400)); const sc = new Float32Array(len);
+        for (let i = 2; i < len; i++) { let n = 0, t = 0; for (let j = 0; j < other; j += step) { const p1 = idx(i, j), p0 = idx(i - 2, j); t++; if (Math.abs(d[p1] - d[p0]) + Math.abs(d[p1 + 1] - d[p0 + 1]) + Math.abs(d[p1 + 2] - d[p0 + 2]) > 18) n++; } sc[i] = n / t; }
+        const out: number[] = [];
+        for (let i = 8; i < len - 8; i++) {
+          if (sc[i] < 0.45) continue;
+          let isMax = true; for (let k = -3; k <= 3; k++) if (sc[i + k] > sc[i]) isMax = false; if (!isMax) continue;
+          let bg = 0; for (const k of [-8, -7, -6, 6, 7, 8]) bg += sc[i + k]; bg /= 6;
+          if (sc[i] >= bg * 2 + 0.15 && (!out.length || i - 1 - out[out.length - 1] * len > 4)) out.push((i - 1) / len);
+        }
+        return out;
+      };
+      setSnaps({ h: run(H, W, (y, x) => (y * W + x) * 4), v: run(W, H, (x, y) => (y * W + x) * 4) });
+    } catch { /* can't read pixels — no snapping */ }
+  }, [img]);
+  const snapTo = (v: number, list: number[], tol: number, off: boolean) => { if (off) return { v, hit: false }; let best = v, bd = tol; for (const s of list) { const dd = Math.abs(s - v); if (dd < bd) { bd = dd; best = s; } } return { v: best, hit: best !== v }; };
+
   const move = (e: React.PointerEvent) => {
     if (!drag.current || !box.current) return;
     const r = box.current.getBoundingClientRect();
-    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    // Snap to a detected line within 9px (hold Alt to place freely).
+    const sxr = snapTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), snaps.v, 9 / r.width, e.altKey), syr = snapTo(Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)), snaps.h, 9 / r.height, e.altKey);
+    const x = sxr.v, y = syr.v; setSnapped({ x: sxr.hit && /[lr]/.test(drag.current), y: syr.hit && /[tb]/.test(drag.current) });
     const d = drag.current;
     setC(p => ({
       t: d.includes("t") ? Math.min(y, p.b - 0.03) : p.t, b: d.includes("b") ? Math.max(y, p.t + 0.03) : p.b,
@@ -62,10 +89,10 @@ export function TrimCropper({ url, onDone, onWhole, onCancel, onSkip, allowAgain
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
       <div className="flex max-h-[96vh] flex-col rounded-xl bg-white p-5 shadow-xl">
-        <div className="flex items-baseline gap-3"><h2 className="text-lg font-semibold">Crop</h2>{progress && <span className="rounded bg-black/5 px-2 py-0.5 text-xs">{progress}</span>}<span className="text-sm text-black/60">Drag the white handles. The bright area is what you keep.</span><div className="flex-1" />{img && <span className="text-xs tabular-nums text-black/50">{keepW} × {keepH}px</span>}</div>
+        <div className="flex items-baseline gap-3"><h2 className="text-lg font-semibold">Crop</h2>{progress && <span className="rounded bg-black/5 px-2 py-0.5 text-xs">{progress}</span>}<span className="text-sm text-black/60">Drag the white handles. They snap to straight lines in the picture (the edge turns pink).</span><div className="flex-1" />{img && <span className="text-xs tabular-nums text-black/50">{keepW} × {keepH}px</span>}</div>
         {!img ? <div className="p-10 text-sm text-black/50">{err || "Loading…"}</div> : (
           <div className="mt-2 min-h-0 flex-1 overflow-auto p-3">
-          <div ref={box} onPointerMove={move} onPointerUp={() => { drag.current = null; }} style={{ width: dw, height: dh }} className="relative mx-auto select-none bg-black/5">
+          <div ref={box} onPointerMove={move} onPointerUp={() => { drag.current = null; setSnapped({ x: false, y: false }); }} style={{ width: dw, height: dh }} className="relative mx-auto select-none bg-black/5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={img.src} alt="" draggable={false} style={{ width: dw, height: dh }} className="block" />
             <div className={`${dim} inset-x-0 top-0`} style={{ height: pct(c.t) }} />
@@ -73,7 +100,7 @@ export function TrimCropper({ url, onDone, onWhole, onCancel, onSkip, allowAgain
             <div className={`${dim} left-0`} style={{ top: pct(c.t), height: pct(c.b - c.t), width: pct(c.l) }} />
             <div className={`${dim} right-0`} style={{ top: pct(c.t), height: pct(c.b - c.t), width: pct(1 - c.r) }} />
             {/* hairline exactly on the crop boundary */}
-            <div className="pointer-events-none absolute" style={{ top: pct(c.t), left: pct(c.l), width: pct(c.r - c.l), height: pct(c.b - c.t), boxShadow: "0 0 0 1px #fff, 0 0 0 2px rgba(0,0,0,.5)" }} />
+            <div className="pointer-events-none absolute" style={{ top: pct(c.t), left: pct(c.l), width: pct(c.r - c.l), height: pct(c.b - c.t), boxShadow: snapped.x || snapped.y ? "0 0 0 2px #e4007c" : "0 0 0 1px #fff, 0 0 0 2px rgba(0,0,0,.5)" }} />
             {/* edge grab zones (invisible, 20px) with a small pill */}
             <div onPointerDown={start("t")} className="absolute z-10 h-5 cursor-ns-resize touch-none" style={{ top: `calc(${pct(c.t)} - 10px)`, left: pct(c.l), width: pct(c.r - c.l) }}><div className={`${pill} left-1/2 top-1/2 h-1.5 w-10 -translate-x-1/2 -translate-y-1/2`} /></div>
             <div onPointerDown={start("b")} className="absolute z-10 h-5 cursor-ns-resize touch-none" style={{ top: `calc(${pct(c.b)} - 10px)`, left: pct(c.l), width: pct(c.r - c.l) }}><div className={`${pill} left-1/2 top-1/2 h-1.5 w-10 -translate-x-1/2 -translate-y-1/2`} /></div>
