@@ -31,6 +31,32 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
     u.saveDesign((d: Record<string, unknown>) => u.loadDesign(insertRows(d, rows) as never));
   };
 
+  // Crop any image already in the email: list them, pick one, trim, swap it in place.
+  type Pic = { path: [number, number, number]; url: string; kind: "image" | "html" };
+  const [pics, setPics] = useState<Pic[] | null>(null); const [cropPic, setCropPic] = useState<Pic | null>(null);
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const openCrop = () => {
+    const u = ref.current?.editor; if (!u) return;
+    u.saveDesign((d: any) => {
+      const out: Pic[] = [];
+      (d?.body?.rows ?? []).forEach((r: any, ri: number) => (r.columns ?? []).forEach((c: any, ci: number) => (c.contents ?? []).forEach((x: any, xi: number) => {
+        if (x.type === "image" && x.values?.src?.url) out.push({ path: [ri, ci, xi], url: x.values.src.url, kind: "image" });
+        else if (x.type === "html") { const m = String(x.values?.html ?? "").match(/<img[^>]+src="([^"]+)"/i); if (m) out.push({ path: [ri, ci, xi], url: m[1].replace(/&amp;/g, "&"), kind: "html" }); }
+      })));
+      setPics(out);
+    });
+  };
+  const applyCrop = (p: Pic, m: { url: string; width: number; height: number }) => {
+    const u = ref.current?.editor; if (!u) return;
+    u.saveDesign((d: any) => {
+      const x = d?.body?.rows?.[p.path[0]]?.columns?.[p.path[1]]?.contents?.[p.path[2]]; if (!x) return;
+      if (p.kind === "image") x.values.src = { ...x.values.src, url: m.url, width: m.width, height: m.height };
+      else x.values.html = String(x.values.html).replace(/(<img[^>]+src=")[^"]+(")/i, `$1${m.url}$2`);
+      u.loadDesign(d as never);
+    });
+  };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
   const [campaignId, setCampaignId] = useState<string | null>(null);
   useEffect(() => { setCampaignId(new URLSearchParams(window.location.search).get("campaign")); }, []);
   const save = (then?: () => void) => {
@@ -73,6 +99,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         <span className="text-xs text-black/50">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}</span>
         <div className="flex-1" />
         <button onClick={() => { setAssist(a => !a); setBlocks(false); setCanva(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
+        <button onClick={openCrop} className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:border-black/40">Crop image</button>
         <button onClick={() => { setCanva(c => !c); setAssist(false); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>
         <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
         <button onClick={() => save()} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">Save</button>
@@ -104,6 +131,21 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
       </div>
       {blocks && <BlocksPanel onInsert={insert} onClose={() => setBlocks(false)} />}
       {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => setCropQ(q => [...q, ...items])} />}
+      {pics && !cropPic && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPics(null)}>
+        <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+          <h2 className="text-lg font-semibold">Which image do you want to crop?</h2>
+          {pics.length === 0 ? <p className="mt-3 text-sm text-black/60">There are no images in this email yet.</p> : (
+            <div className="mt-3 grid grid-cols-3 gap-3">{pics.map((p, i) => (
+              <button key={i} onClick={() => setCropPic(p)} className="overflow-hidden rounded-lg border border-black/10 bg-black/5 p-1 hover:border-brand">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" className="h-40 w-full object-contain" />
+              </button>))}</div>)}
+          <button onClick={() => setPics(null)} className="mt-4 text-sm text-black/50 hover:text-black">Cancel</button>
+        </div>
+      </div>}
+      {cropPic && <TrimCropper key={"c" + cropPic.url} url={cropPic.url} doneLabel="Save crop"
+        onDone={m => { applyCrop(cropPic, m); setCropPic(null); setPics(null); }}
+        onCancel={() => { setCropPic(null); setPics(null); }} />}
       {cropQ[0] && <TrimCropper key={cropQ[0].url} url={cropQ[0].url}
         onDone={m => { insert([imageRow(m.url, m.width, m.height, { maxWidth: 600, padding: "0px" })]); setCropQ(q => q.slice(1)); }}
         onWhole={() => { const m = cropQ[0]; insert([imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: 600, padding: "0px" })]); setCropQ(q => q.slice(1)); }}

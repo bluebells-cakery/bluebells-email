@@ -5,7 +5,7 @@ export type Cropped = { url: string; width: number; height: number };
 type Edge = "t" | "b" | "l" | "r";
 
 /** Crop an image by dragging its four edges in (for trimming Canva blocks). Saves the result to the media library as a JPEG, max 1200px wide. */
-export function TrimCropper({ url, onDone, onWhole, onCancel }: { url: string; onDone: (c: Cropped) => void; onWhole: () => void; onCancel: () => void }) {
+export function TrimCropper({ url, onDone, onWhole, onCancel, doneLabel = "Add cropped" }: { url: string; onDone: (c: Cropped) => void; onWhole?: () => void; onCancel: () => void; doneLabel?: string }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   const [c, setC] = useState({ t: 0, b: 1, l: 0, r: 1 }); // fractions of the image
@@ -29,7 +29,7 @@ export function TrimCropper({ url, onDone, onWhole, onCancel }: { url: string; o
       const cv = document.createElement("canvas"); cv.width = ow; cv.height = oh;
       const g = cv.getContext("2d")!; g.fillStyle = "#ffffff"; g.fillRect(0, 0, ow, oh); g.drawImage(img, sx, sy, sw, sh, 0, 0, ow, oh);
       const blob: Blob = await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error("crop failed")), "image/jpeg", 0.92));
-      const fd = new FormData(); fd.append("files", new File([blob], `crop-${Date.now()}.jpg`, { type: "image/jpeg" })); fd.append("folder", "canva");
+      const fd = new FormData(); fd.append("files", new File([blob], `crop-${Date.now()}.jpg`, { type: "image/jpeg" })); fd.append("folder", "crops");
       const r = await fetch("/api/media", { method: "POST", body: fd }); const j = await r.json();
       if (!r.ok || !j.items?.[0]) throw new Error(j.error ?? "Upload failed");
       onDone({ url: j.items[0].url, width: j.items[0].width ?? ow, height: j.items[0].height ?? oh });
@@ -59,8 +59,8 @@ export function TrimCropper({ url, onDone, onWhole, onCancel }: { url: string; o
           </div>)}
         {err && img && <p className="mt-2 text-sm text-red-700">{err}</p>}
         <div className="mt-4 flex items-center gap-2">
-          <button disabled={!img || busy} onClick={finish} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : "Add cropped"}</button>
-          <button disabled={busy} onClick={onWhole} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40">Add whole image</button>
+          <button disabled={!img || busy} onClick={finish} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : doneLabel}</button>
+          {onWhole && <button disabled={busy} onClick={onWhole} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40">Add whole image</button>}
           <button disabled={busy} onClick={() => setC({ t: 0, b: 1, l: 0, r: 1 })} className="text-sm text-black/50 hover:text-black">Reset</button>
           <div className="flex-1" />
           <button disabled={busy} onClick={onCancel} className="text-sm text-black/50 hover:text-black">Cancel</button>
