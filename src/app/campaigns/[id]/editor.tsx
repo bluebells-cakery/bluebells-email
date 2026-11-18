@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { OpenEditor } from "../start-choice";
 
 type Audience = { include: "subscribed" | "segments"; segment_ids: number[]; exclude_segment_ids: number[] };
 type C = { id: number; name: string; smart_sending: boolean; subject: string | null; preview_text: string | null; from_name: string | null; template_id: number | null; html: string | null; status: string; scheduled_at: string | null; recipient_count: number | null; audience: Audience; sent_at: string | null; provider?: string | null };
@@ -54,9 +55,7 @@ export function CampaignEditor({ campaign, templates, segments, stats }: { campa
           <section className="rounded-lg border border-black/10 bg-white p-5">
             <h2 className="font-medium">2. Email</h2>
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              {c.template_id
-                ? <Link href={`/templates/${c.template_id}?campaign=${c.id}`} className={`rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${locked ? "pointer-events-none opacity-40" : ""}`}>Open editor</Link>
-                : <span className="text-sm text-black/60">No email yet — pick a template below.</span>}
+              {!locked && <OpenEditor id={Number(c.id)} templateId={c.template_id} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90" label={c.template_id ? "Open editor" : "Design email"} />}
               {c.template_id && <a href={`/api/campaigns/${c.id}/preview`} target="_blank" className="rounded-md border border-black/15 px-4 py-2 text-sm hover:border-black/40">Preview</a>}
             </div>
             {!locked && <div className="mt-3 flex items-center gap-2">
