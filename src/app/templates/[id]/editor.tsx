@@ -24,7 +24,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [picker, setPicker] = useState<((url: string) => void) | null>(null);
-  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [media, setMedia] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]); const [cropTotal, setCropTotal] = useState(0);
+  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [media, setMedia] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]); const [cropTotal, setCropTotal] = useState(0); const [pages, setPages] = useState<CanvaItem[] | null>(null); const [pagePick, setPagePick] = useState<number[]>([]);
   const [assist, setAssist] = useState(false);
 
   const saveRef = useRef<(then?: () => void) => void>(() => {});
@@ -174,7 +174,24 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         <div className="flex items-center gap-2 border-b border-black/10 px-3 py-2"><span className="text-sm font-medium">Media library</span><span className="text-xs text-black/50">click an image to add it to the email</span><div className="flex-1" /><button onClick={() => setMedia(false)} className="text-xs text-black/50 hover:text-black">Close</button></div>
         <div className="min-h-0 flex-1 overflow-hidden"><MediaLibrary compact onSelect={(m: MediaItem) => { const w = m.width ?? 600, h = m.height ?? 600; insert([imageRow(m.url, w, h, w >= 700 ? { maxWidth: "100%", padding: "0px" } : { maxWidth: Math.min(w, 300), padding: "20px" })]); }} /></div>
       </div>}
-      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => { setCropQ(items); setCropTotal(items.length); }} />}
+      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => { if (items.length <= 1) { setCropQ(items); setCropTotal(items.length); } else { setPages(items); setPagePick([]); } }} />}
+      {pages && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+        <div className="flex max-h-[94vh] w-full max-w-4xl flex-col rounded-xl bg-white p-5 shadow-xl">
+          <div className="flex items-baseline gap-3"><h2 className="text-lg font-semibold">Which pages do you want?</h2><span className="text-sm text-black/60">Tick the ones to bring in. You crop each one next.</span><div className="flex-1" />
+            <button onClick={() => setPagePick(pagePick.length === pages.length ? [] : pages.map((_, i) => i))} className="text-sm text-brand hover:underline">{pagePick.length === pages.length ? "Untick all" : "Tick all"}</button></div>
+          <div className="mt-3 grid min-h-0 flex-1 grid-cols-3 gap-3 overflow-auto p-1 md:grid-cols-4">{pages.map((m, i) => { const on = pagePick.includes(i); return (
+            <button key={m.url} onClick={() => setPagePick(p => on ? p.filter(x => x !== i) : [...p, i].sort((a, b) => a - b))} className={`relative overflow-hidden rounded-lg border-2 bg-black/5 text-left ${on ? "border-brand" : "border-black/10 hover:border-black/30"}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.url + (m.url.includes("?") ? "&" : "?") + "width=360"} alt="" className="block w-full" />
+              <span className={`absolute left-2 top-2 grid h-6 w-6 place-items-center rounded border-2 text-sm font-bold ${on ? "border-brand bg-brand text-white" : "border-black/30 bg-white text-transparent"}`}>✓</span>
+              <span className="absolute bottom-2 right-2 rounded bg-white/90 px-1.5 py-0.5 text-xs">Page {i + 1}</span>
+            </button>); })}</div>
+          <div className="mt-4 flex items-center gap-3">
+            <button disabled={!pagePick.length} onClick={() => { const sel = pagePick.map(i => pages[i]); setPages(null); setCropQ(sel); setCropTotal(sel.length); }} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{pagePick.length ? `Crop ${pagePick.length} page${pagePick.length > 1 ? "s" : ""}` : "Tick at least one"}</button>
+            <div className="flex-1" /><button onClick={() => setPages(null)} className="text-sm text-black/50 hover:text-black">Cancel</button>
+          </div>
+        </div>
+      </div>}
       {pics && !cropPic && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPics(null)}>
         <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
           <h2 className="text-lg font-semibold">Which image do you want to crop?</h2>
