@@ -27,7 +27,7 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
 
   const insertWave = async () => {
     setBusy(true);
-    const r = await fetch("/api/brand/save", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ svg: waveSvg(1200, 41), filename: `wave-${waveFill.slice(1)}-on-${waveBg.slice(1)}${flip ? "-flipped" : ""}`, width: 1200 }) });
+    const r = await fetch("/api/brand/save", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ svg: waveSvg(1200, 41), filename: `wave2-${waveFill.slice(1)}-on-${waveBg.slice(1)}${flip ? "-flipped" : ""}`, width: 1200 }) });
     const m = await r.json(); setBusy(false);
     onInsert([waveRow(m.url, 1200, 41, flip ? waveFill : waveBg)]);
   };

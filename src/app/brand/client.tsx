@@ -92,7 +92,7 @@ export function BrandClient({ brand }: { brand: B }) {
             <label className="flex items-center gap-2 text-sm">Behind <input type="color" value={waveBg} onChange={e => setWaveBg(e.target.value)} /></label>
             <div className="flex gap-1">{SWATCHES.map(c => <button key={c} onClick={() => setWaveFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
             <div className="flex-1" />
-            <button disabled={!!busy} onClick={() => save("wave", waveSvg(1200, 41), `wave-${waveFill.slice(1)}-on-${waveBg.slice(1)}`, 1200)} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">{busy === "wave" ? "Saving…" : saved === "wave" ? "Saved to media" : "Save to media (1200px PNG)"}</button>
+            <button disabled={!!busy} onClick={() => save("wave", waveSvg(1200, 41), `wave2-${waveFill.slice(1)}-on-${waveBg.slice(1)}`, 1200)} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">{busy === "wave" ? "Saving…" : saved === "wave" ? "Saved to media" : "Save to media (1200px PNG)"}</button>
           </div>
           <div className="mt-4 overflow-hidden rounded" style={{ background: waveBg }} dangerouslySetInnerHTML={{ __html: waveSvg(1158, 60).replace('width="1158" height="60"', 'width="100%" height="60"') }} />
           <p className="mt-2 text-xs text-black/50">On the site the wave sits between a coloured section and the next; in email, place the PNG as a full-width image directly under a block with the “Wave” colour as its background.</p>

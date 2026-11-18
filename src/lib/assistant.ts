@@ -55,7 +55,7 @@ const tools: Anthropic.Tool[] = [
 
 async function renderWave(fill: string, behind: string, flip: boolean) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="41" viewBox="0 0 1158 40" preserveAspectRatio="none"><rect width="1158" height="40" fill="${behind}"/><g transform="${flip ? "translate(0,40) scale(1,-1) " : ""}translate(0,40) scale(0.1,-0.1)" fill="${fill}"><path d="${brand.wavePath}"/></g></svg>`;
-  const fname = `wave-${fill.slice(1)}-on-${behind.slice(1)}${flip ? "-flipped" : ""}`;
+  const fname = `wave2-${fill.slice(1)}-on-${behind.slice(1)}${flip ? "-flipped" : ""}`;
   const existing = (await sql`select url from media where filename = ${fname + ".png"} limit 1`)[0];
   if (existing) return existing.url as string;
   const png = await sharp(Buffer.from(svg), { density: 300 }).resize({ width: 1200 }).png().toBuffer();
