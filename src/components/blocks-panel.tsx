@@ -4,6 +4,9 @@ import { MediaLibrary, type MediaItem } from "@/components/media-library";
 import { brand, SWATCHES, CREAM } from "@/lib/brand";
 import { waveRow, productRow, imageRow, roundedImageRow, footerRow, type Product } from "@/lib/blocks";
 import { PhotoCropper } from "@/components/photo-cropper";
+import { WavyCircle } from "@/app/brand/wavy-circle";
+import { WavyClip } from "@/app/brand/wavy-clip";
+import { BrandIcons } from "@/app/brand/brand-icons";
 
 type Row = Record<string, unknown>;
 const SW = SWATCHES;
@@ -13,7 +16,7 @@ const Pick = ({ v, set, label }: { v: string; set: (s: string) => void; label: s
 );
 
 export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => void; onClose: () => void }) {
-  const [tab, setTab] = useState<"wave" | "product" | "image" | "footer">("wave");
+  const [tab, setTab] = useState<"wave" | "badge" | "circle" | "icons" | "image" | "product" | "footer">("wave");
   const [waveFill, setWaveFill] = useState("#f7d1d4"); const [waveBg, setWaveBg] = useState(CREAM);
   const [flip, setFlip] = useState(false);
   const [q, setQ] = useState(""); const [results, setResults] = useState<Product[]>([]); const [picked, setPicked] = useState<Product[]>([]);
@@ -34,9 +37,9 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
   const search = async (s: string) => { setQ(s); if (s.length < 2) return setResults([]); const r = await fetch(`/api/products/search?q=${encodeURIComponent(s)}`); setResults((await r.json()).products); };
 
   return (
-    <div className="flex h-full w-[420px] flex-col border-l border-black/10 bg-white">
-      <div className="flex items-center gap-1 border-b border-black/10 px-3 py-2">
-        {([["wave", "Wave"], ["product", "Products"], ["image", "Image / badge"], ["footer", "Footer"]] as const).map(([k, l]) => (
+    <div className="flex h-full w-[500px] flex-col border-l border-black/10 bg-white">
+      <div className="flex flex-wrap items-center gap-1 border-b border-black/10 px-3 py-2">
+        {([["wave", "Wave"], ["badge", "Badge"], ["circle", "Photo circle"], ["icons", "Logo & icons"], ["image", "Photo"], ["product", "Products"], ["footer", "Footer"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`rounded px-2 py-1 text-xs font-medium ${tab === k ? "bg-brand/10 text-brand" : "text-black/60 hover:bg-black/5"}`}>{l}</button>
         ))}
         <div className="flex-1" /><button onClick={onClose} className="text-xs text-black/50 hover:text-black">Close</button>
@@ -63,7 +66,7 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
         {tab === "image" && (<div className="space-y-3">
           <div className="flex gap-2 text-xs">
             <button onClick={() => setRounded(true)} className={`rounded-md border px-2 py-1 ${rounded ? "border-brand text-brand" : "border-black/15"}`}>Photo</button>
-            <button onClick={() => setRounded(false)} className={`rounded-md border px-2 py-1 ${!rounded ? "border-brand text-brand" : "border-black/15"}`}>Badge / sticker from library</button>
+            <button onClick={() => setRounded(false)} className={`rounded-md border px-2 py-1 ${!rounded ? "border-brand text-brand" : "border-black/15"}`}>Any image from Media</button>
           </div>
           {rounded ? (<>
             {cropFile ? <PhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={async (blob, w, h) => {
@@ -91,9 +94,20 @@ export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => 
             <button disabled={!photo} onClick={() => photo && onInsert([roundedImageRow(photo.url, photo.w, photo.h, { radius, maxWidth: maxW, href: link || undefined })])} className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">Insert photo</button>
             <p className="text-xs text-black/50">Inserted as a new row at the bottom — drag it into place. Outlook desktop shows square corners.</p>
           </>) : (<div className="flex h-[50vh] flex-col">
-            <p className="mb-2 text-xs text-black/50">Pick a badge/sticker from the library — inserted as a centred row (make badges on the Brand page first).</p>
+            <p className="mb-2 text-xs text-black/50">Pick any saved image — inserted as a centred row.</p>
             <div className="min-h-0 flex-1 overflow-hidden rounded border border-black/10"><MediaLibrary compact onSelect={(m: MediaItem) => onInsert([imageRow(m.url, m.width ?? 600, m.height ?? 600, { maxWidth: Math.min(m.width ?? 600, 300) })])} /></div>
           </div>)}
+        </div>)}
+        {tab === "badge" && (<div className="space-y-3">
+          <p className="text-xs text-black/60">Make a wavy badge and drop it straight into the email as a centred image. It's also kept in Media.</p>
+          <WavyCircle compact onAdd={m => onInsert([imageRow(m.url, m.width, m.height, { maxWidth: 200, padding: "16px" })])} />
+        </div>)}
+        {tab === "circle" && (<div className="space-y-3">
+          <WavyClip compact onAdd={m => onInsert([imageRow(m.url, m.width, m.height, { maxWidth: 300, padding: "16px" })])} />
+        </div>)}
+        {tab === "icons" && (<div className="space-y-3">
+          <p className="text-xs text-black/60">Logo, icons and stickers in any brand colour.</p>
+          <BrandIcons onAdd={(m, id) => onInsert([imageRow(m.url, m.width, m.height, { maxWidth: id === "logo" ? 180 : 110, padding: "16px" })])} />
         </div>)}
         {tab === "footer" && (<div className="space-y-3">
           <p className="text-xs text-black/60">Standard footer with the three stores, website link, unsubscribe link and business address (required for compliance).</p>

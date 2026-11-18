@@ -130,7 +130,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         <button onClick={() => { setMedia(m => !m); setCanva(false); setAssist(false); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${media ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Media</button>
         <button onClick={openCrop} className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:border-black/40">Crop image</button>
         <button onClick={() => { setCanva(c => !c); setAssist(false); setBlocks(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>
-        <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
+        <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Design elements</button>
         <div className="relative">
           <button onClick={openTest} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${testOpen ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Send test</button>
           {testOpen && <div className="absolute right-0 top-full z-40 mt-2 w-80 rounded-lg border border-black/10 bg-white p-4 text-sm shadow-xl">

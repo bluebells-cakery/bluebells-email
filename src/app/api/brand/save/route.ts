@@ -12,6 +12,6 @@ export async function POST(req: NextRequest) {
   const fname = `${String(filename ?? "element").replace(/[^\w-]+/g, "-")}.png`;
   const up = await uploadToShopifyFiles(png, fname, "image/png", "");
   const [row] = await sql`insert into media (shopify_file_id, url, filename, mime, width, height, bytes, folder, tags, source)
-    values (${up.id}, ${up.url}, ${fname}, 'image/png', ${meta.width ?? null}, ${meta.height ?? null}, ${png.length}, 'brand elements', '{brand}', 'brand') returning id, url`;
+    values (${up.id}, ${up.url}, ${fname}, 'image/png', ${meta.width ?? null}, ${meta.height ?? null}, ${png.length}, 'brand elements', '{brand}', 'brand') returning id, url, width, height`;
   return NextResponse.json(row);
 }
