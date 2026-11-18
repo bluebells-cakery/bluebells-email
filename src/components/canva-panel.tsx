@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 
 type D = { id: string; title?: string; updated_at: number; thumbnail?: { url: string }; urls?: { edit_url: string }; imported: boolean };
 
-export function CanvaPanel({ onImported, onClose }: { onImported: () => void; onClose: () => void }) {
+export type CanvaItem = { id: string; url: string; width: number | null; height: number | null };
+/** insertLabel set (in the email editor): the button reads e.g. "Add to email" and the imported pages are handed to onImported. */
+export function CanvaPanel({ onImported, onClose, insertLabel }: { onImported: (items: CanvaItem[]) => void; onClose: () => void; insertLabel?: string }) {
   const [state, setState] = useState<{ connected: boolean; items: D[]; error?: string; continuation?: string } | null>(null);
   const [q, setQ] = useState(""); const [busy, setBusy] = useState<string | null>(null);
   const load = async (query = q) => { const r = await fetch(`/api/canva/designs?q=${encodeURIComponent(query)}`); setState(await r.json()); };
   useEffect(() => { load(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const imp = async (id: string) => { setBusy(id); const r = await fetch("/api/canva/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ designId: id }) }); setBusy(null); if (r.ok) { onImported(); load(); } else alert((await r.json()).error); };
+  const imp = async (id: string) => { setBusy(id); const r = await fetch("/api/canva/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ designId: id }) }); setBusy(null); const j = await r.json(); if (r.ok) { onImported(j.items ?? []); load(); } else alert(j.error); };
   return (
     <div className="flex h-full w-[460px] flex-col border-l border-black/10 bg-white">
       <div className="flex items-center gap-2 border-b border-black/10 px-3 py-2"><span className="text-sm font-medium">Canva designs</span><div className="flex-1" /><button onClick={onClose} className="text-xs text-black/50 hover:text-black">Close</button></div>
@@ -24,7 +26,7 @@ export function CanvaPanel({ onImported, onClose }: { onImported: () => void; on
                 <div className="aspect-square overflow-hidden rounded bg-black/5">{d.thumbnail && <img src={d.thumbnail.url} alt="" className="h-full w-full object-contain" />}</div>
                 <div className="mt-1 truncate text-xs font-medium" title={d.title}>{d.title || "Untitled"}</div>
                 <div className="mt-1 flex items-center gap-2 text-[11px]">
-                  <button disabled={busy === d.id} onClick={() => imp(d.id)} className="rounded bg-brand px-2 py-0.5 font-medium text-white disabled:opacity-50">{busy === d.id ? "Importing…" : d.imported ? "Re-import" : "Import"}</button>
+                  <button disabled={busy === d.id} onClick={() => imp(d.id)} className="rounded bg-brand px-2 py-0.5 font-medium text-white disabled:opacity-50">{busy === d.id ? "Importing…" : insertLabel ?? (d.imported ? "Re-import" : "Import")}</button>
                   {d.imported && <span className="text-green-700">in library</span>}
                   {d.urls?.edit_url && <a href={d.urls.edit_url} target="_blank" className="ml-auto text-black/50 hover:text-black">Open ↗</a>}
                 </div>

@@ -7,6 +7,8 @@ import { brand } from "@/lib/brand";
 import { BlocksPanel } from "@/components/blocks-panel";
 import { AssistantPanel } from "@/components/assistant-panel";
 import { insertRows } from "@/lib/blocks";
+import { CanvaPanel } from "@/components/canva-panel";
+import { imageRow } from "@/lib/blocks";
 
 const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: i === 0 ? "brand_colors" : `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex), default: i === 0 }));
 const fontUrl = (g: string) => `https://fonts.googleapis.com/css2?family=${g}&display=swap`;
@@ -20,7 +22,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [picker, setPicker] = useState<((url: string) => void) | null>(null);
-  const [blocks, setBlocks] = useState(false);
+  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false);
   const [assist, setAssist] = useState(false);
 
   const insert = (rows: Record<string, unknown>[]) => {
@@ -69,8 +71,9 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
           : <input value={name} onChange={e => setName(e.target.value)} title="Template name" className="rounded border border-black/10 px-2 py-1 text-sm font-medium" />}
         <span className="text-xs text-black/50">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}</span>
         <div className="flex-1" />
-        <button onClick={() => { setAssist(a => !a); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
-        <button onClick={() => { setBlocks(b => !b); setAssist(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
+        <button onClick={() => { setAssist(a => !a); setBlocks(false); setCanva(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
+        <button onClick={() => { setCanva(c => !c); setAssist(false); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>
+        <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
         <button onClick={() => save()} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">Save</button>
       </div>
       <div className="flex min-h-0 flex-1">
@@ -99,6 +102,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
           }} />
       </div>
       {blocks && <BlocksPanel onInsert={insert} onClose={() => setBlocks(false)} />}
+      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => { if (items.length) insert(items.map(m => imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: 600, padding: "0px" }))); }} />}
       {assist && <AssistantPanel onInsert={insert} onClose={() => setAssist(false)} />}
       </div>
       {picker && (

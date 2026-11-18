@@ -57,7 +57,7 @@ export async function importDesign(designId: string) {
     const [row] = await sql`insert into media (shopify_file_id, url, filename, mime, width, height, bytes, folder, tags, source, source_url, alt)
       values (${up.id}, ${up.url}, ${fname}, 'image/png', ${up.width ?? null}, ${up.height ?? null}, ${buf.length}, ${folder}, '{canva}', 'canva', ${key}, ${title})
       on conflict (source_url) do update set url = excluded.url, shopify_file_id = excluded.shopify_file_id, width = excluded.width, height = excluded.height, bytes = excluded.bytes, created_at = now()
-      returning id, url, filename, folder`;
+      returning id, url, filename, folder, width, height`;
     out.push(row);
   }
   return out;
