@@ -7,7 +7,8 @@ import { brand } from "@/lib/brand";
 import { BlocksPanel } from "@/components/blocks-panel";
 import { AssistantPanel } from "@/components/assistant-panel";
 import { insertRows } from "@/lib/blocks";
-import { CanvaPanel } from "@/components/canva-panel";
+import { CanvaPanel, type CanvaItem } from "@/components/canva-panel";
+import { TrimCropper } from "@/components/trim-cropper";
 import { imageRow } from "@/lib/blocks";
 
 const brandColourGroups = Object.entries(brand.colours).map(([label, list], i) => ({ id: i === 0 ? "brand_colors" : `brand_${i}`, label: `Bluebells · ${label}`, colors: list.map(([, hex]) => hex), default: i === 0 }));
@@ -22,7 +23,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [picker, setPicker] = useState<((url: string) => void) | null>(null);
-  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false);
+  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]);
   const [assist, setAssist] = useState(false);
 
   const insert = (rows: Record<string, unknown>[]) => {
@@ -102,7 +103,11 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
           }} />
       </div>
       {blocks && <BlocksPanel onInsert={insert} onClose={() => setBlocks(false)} />}
-      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => { if (items.length) insert(items.map(m => imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: 600, padding: "0px" }))); }} />}
+      {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => setCropQ(q => [...q, ...items])} />}
+      {cropQ[0] && <TrimCropper key={cropQ[0].url} url={cropQ[0].url}
+        onDone={m => { insert([imageRow(m.url, m.width, m.height, { maxWidth: 600, padding: "0px" })]); setCropQ(q => q.slice(1)); }}
+        onWhole={() => { const m = cropQ[0]; insert([imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: 600, padding: "0px" })]); setCropQ(q => q.slice(1)); }}
+        onCancel={() => setCropQ(q => q.slice(1))} />}
       {assist && <AssistantPanel onInsert={insert} onClose={() => setAssist(false)} />}
       </div>
       {picker && (
