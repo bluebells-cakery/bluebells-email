@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
 import { MediaLibrary, type MediaItem } from "@/components/media-library";
-import { brand } from "@/lib/brand";
+import { brand, SWATCHES, CREAM } from "@/lib/brand";
 import { waveRow, productRow, imageRow, roundedImageRow, footerRow, type Product } from "@/lib/blocks";
 import { PhotoCropper } from "@/components/photo-cropper";
 
 type Row = Record<string, unknown>;
-const SW = ["#fbe7e6", "#fcd1bd", "#fff9ea", "#e4c5e0", "#c0e6ef", "#262967", "#fffdf8", "#ffffff"];
+const SW = SWATCHES;
 const Pick = ({ v, set, label }: { v: string; set: (s: string) => void; label: string }) => (
   <label className="flex items-center gap-2 text-xs">{label} <input type="color" value={v} onChange={e => set(e.target.value)} />
     <span className="flex gap-1">{SW.map(c => <button key={c} onClick={() => set(c)} className="h-4 w-4 rounded border border-black/10" style={{ background: c }} />)}</span></label>
@@ -14,10 +14,10 @@ const Pick = ({ v, set, label }: { v: string; set: (s: string) => void; label: s
 
 export function BlocksPanel({ onInsert, onClose }: { onInsert: (rows: Row[]) => void; onClose: () => void }) {
   const [tab, setTab] = useState<"wave" | "product" | "image" | "footer">("wave");
-  const [waveFill, setWaveFill] = useState("#fbe7e6"); const [waveBg, setWaveBg] = useState("#fffdf8");
+  const [waveFill, setWaveFill] = useState("#f7d1d4"); const [waveBg, setWaveBg] = useState(CREAM);
   const [flip, setFlip] = useState(false);
   const [q, setQ] = useState(""); const [results, setResults] = useState<Product[]>([]); const [picked, setPicked] = useState<Product[]>([]);
-  const [cardBg, setCardBg] = useState("#ffffff"); const [rowBg, setRowBg] = useState("#fffdf8"); const [btn, setBtn] = useState("Order now");
+  const [cardBg, setCardBg] = useState("#ffffff"); const [rowBg, setRowBg] = useState(CREAM); const [btn, setBtn] = useState("Order now");
   const [rounded, setRounded] = useState(true); const [radius, setRadius] = useState(16); const [maxW, setMaxW] = useState(520);
   const [photo, setPhoto] = useState<{ url: string; w: number; h: number } | null>(null); const [uploading, setUploading] = useState(false); const [link, setLink] = useState(""); const [upErr, setUpErr] = useState(""); const [cropFile, setCropFile] = useState<File | null>(null); const [fromLib, setFromLib] = useState(false);
   const [busy, setBusy] = useState(false);

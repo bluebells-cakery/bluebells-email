@@ -11,7 +11,7 @@ type Row = Record<string, unknown>;
 
 const SYSTEM = `You are the design assistant inside Bluebells Cakery's email builder (Auckland bakery: Kingsland, Commercial Bay, Airport; site bluebellscakery.com).
 You build email rows from a small block kit and write on-brand copy: warm, playful, short sentences, NZ English, no exclamation overload.
-Brand colours: navy #262967 (text), cream #fffdf8 (background), pink #e4c5e0 with navy text (buttons), navy links, pastels blush #fbe7e6, peach #fcd1bd, butter #fff9ea, lilac #e4c5e0, sky #c0e6ef. Headings: Crimson Pro (serif). Body: Poppins.
+Brand colours: navy #262967 (text), cream #f4f2df (background), lilac #e4c5e0 with navy text (buttons), navy links, pastels baby pink #f7d1d4, baby blue #c0e6ef, baby teal #cbecd7, lemon #fffabd, peach #fcd1bd, lilac #e4c5e0. Use only these colours. Headings: Crimson Pro (serif). Body: Poppins.
 Workflow: use search_media to find existing artwork/badges/photos and search_products for live products BEFORE emitting rows; never invent image URLs. Then call emit_rows once with the finished rows. Keep rows email-safe (max 3 columns). If the user only wants copy, call emit_copy.`;
 
 const tools: Anthropic.Tool[] = [
@@ -71,7 +71,7 @@ async function specToRows(rows: Item[]): Promise<Row[]> {
     const cols = (r.columns as Item[]) ?? [];
     // special single-item rows
     const only = cols.length === 1 && (cols[0].items as Item[])?.length === 1 ? (cols[0].items as Item[])[0] : null;
-    if (only?.type === "wave") { out.push(waveRow(await renderWave(String(only.fill ?? "#fbe7e6"), String(only.behind ?? "#fffdf8"), !!only.flip), 1200, 41, String(only.flip ? only.fill ?? "#fbe7e6" : only.behind ?? "#fffdf8"))); continue; }
+    if (only?.type === "wave") { out.push(waveRow(await renderWave(String(only.fill ?? "#f7d1d4"), String(only.behind ?? "#f4f2df"), !!only.flip), 1200, 41, String(only.flip ? only.fill ?? "#f7d1d4" : only.behind ?? "#f4f2df"))); continue; }
     if (only?.type === "footer") { out.push(footerRow()); continue; }
     if (only?.type === "products") { out.push(productRow((only.products as Product[]) ?? [], { bg: r.background as string, buttonText: only.buttonText as string })); continue; }
     const columns = [];
@@ -85,7 +85,7 @@ async function specToRows(rows: Item[]): Promise<Row[]> {
           contents.push(img);
         }
         else if (it.type === "button") contents.push(button(String(it.label ?? "Shop now"), String(it.href ?? SITE_URL), { bg: it.bg as string }));
-        else if (it.type === "wave") contents.push(image(await renderWave(String(it.fill ?? "#fbe7e6"), String(it.behind ?? "#fffdf8"), !!it.flip), 1200, 41));
+        else if (it.type === "wave") contents.push(image(await renderWave(String(it.fill ?? "#f7d1d4"), String(it.behind ?? "#f4f2df"), !!it.flip), 1200, 41));
       }
       columns.push({ contents, values: { backgroundColor: c.background ?? "", padding: "0px", border: {} } });
     }

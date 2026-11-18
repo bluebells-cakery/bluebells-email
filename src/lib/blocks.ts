@@ -1,7 +1,7 @@
 import { SITE_URL } from "@/lib/site";
 // Builders for Unlayer row JSON — "Bluebells blocks" inserted into a design.
 type Row = Record<string, unknown>;
-const NAVY = "#262967", CREAM = "#fffdf8", PINK = "#e4c5e0";
+const NAVY = "#262967", CREAM = "#f4f2df", PINK = "#e4c5e0"; // PINK = Lilac (buttons)
 const HEAD = "'Crimson Pro', Georgia, 'Times New Roman', serif";
 const BODY = "'Poppins', Arial, Helvetica, sans-serif";
 

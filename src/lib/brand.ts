@@ -15,12 +15,13 @@ export const brand = {
     { name: "Body / Label / Button", font: "body", size: 18, line: 22, weight: 400 },
     { name: "Subheading heavy", font: "body", size: 14, line: 17, weight: 700 },
   ],
+  // Official palette from the Bluebells brand sheet (Nov 2026). Everything in the app that offers colours reads from here.
   colours: {
     "Core": [
-      ["Navy (text / primary)", "#262967"], ["Cream (page background)", "#fffdf8"], ["Pink (buttons)", "#e4c5e0"], ["Pink hover", "#d9b2d4"], ["Charcoal", "#333333"], ["White", "#ffffff"],
+      ["Navy", "#262967"], ["Cream", "#f4f2df"], ["White", "#ffffff"],
     ],
-    "Pastel accents": [
-      ["Blush", "#fbe7e6"], ["Peach", "#fcd1bd"], ["Butter", "#fff9ea"], ["Lilac", "#e4c5e0"], ["Sky", "#c0e6ef"], ["Rose mist", "#fcf0f0"],
+    "Pastels": [
+      ["Baby Pink", "#f7d1d4"], ["Baby Blue", "#c0e6ef"], ["Baby Teal", "#cbecd7"], ["Lemon", "#fffabd"], ["Peach", "#fcd1bd"], ["Lilac", "#e4c5e0"],
     ],
   } as Record<string, [string, string][]>,
   wavePath: "M645 344 c-91 -14 -210 -43 -365 -89 -46 -14 -128 -33 -182 -42 l-98 -16 0 -99 0 -98 5790 0 5790 0 0 95 0 95 -159 0 c-88 0 -213 7 -278 15 -106 14 -166 28 -418 96 -133 36 -290 52 -495 52 -228 -1 -354 -17 -534 -70 -66 -20 -165 -46 -219 -59 -273 -64 -595 -56 -875 22 -328 91 -386 101 -607 111 -237 10 -499 -23 -679 -86 -332 -115 -771 -116 -1142 -1 -148 46 -262 68 -426 81 -248 21 -567 -14 -748 -81 -161 -59 -455 -97 -665 -86 -177 10 -311 32 -479 81 -203 58 -284 73 -458 87 -172 14 -403 1 -584 -32 -105 -19 -138 -27 -324 -84 -252 -77 -617 -69 -915 20 -186 56 -263 74 -368 89 -134 19 -438 18 -562 -1z",
@@ -33,3 +34,8 @@ export const brand = {
     { id: "soup", name: "Bowl icon", file: "/brand/soup.svg", kind: "svg", recolour: true },
   ],
 };
+
+export const NAVY = "#262967", CREAM = "#f4f2df", WHITE = "#ffffff";
+export const PASTELS = brand.colours["Pastels"].map(c => c[1]);
+/** Swatch row for colour pickers: the six pastels, then navy, cream, white. */
+export const SWATCHES = [...PASTELS, NAVY, CREAM, WHITE];

@@ -1,4 +1,5 @@
 "use client";
+import { SWATCHES, CREAM } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import type { brand as Brand } from "@/lib/brand";
 import { WavyCircle } from "./wavy-circle";
@@ -19,8 +20,8 @@ function Swatch({ name, hex }: { name: string; hex: string }) {
 }
 
 export function BrandClient({ brand }: { brand: B }) {
-  const [waveFill, setWaveFill] = useState("#fbe7e6");
-  const [waveBg, setWaveBg] = useState("#fffdf8");
+  const [waveFill, setWaveFill] = useState("#f7d1d4");
+  const [waveBg, setWaveBg] = useState(CREAM);
   const [elFill, setElFill] = useState("#262967");
   const [svgs, setSvgs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export function BrandClient({ brand }: { brand: B }) {
             <div className="font-medium">Wave divider</div>
             <label className="flex items-center gap-2 text-sm">Wave <input type="color" value={waveFill} onChange={e => setWaveFill(e.target.value)} /></label>
             <label className="flex items-center gap-2 text-sm">Behind <input type="color" value={waveBg} onChange={e => setWaveBg(e.target.value)} /></label>
-            <div className="flex gap-1">{["#fbe7e6", "#fcd1bd", "#fff9ea", "#e4c5e0", "#c0e6ef", "#262967", "#ffffff"].map(c => <button key={c} onClick={() => setWaveFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
+            <div className="flex gap-1">{SWATCHES.map(c => <button key={c} onClick={() => setWaveFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
             <div className="flex-1" />
             <button disabled={!!busy} onClick={() => save("wave", waveSvg(1200, 41), `wave-${waveFill.slice(1)}-on-${waveBg.slice(1)}`, 1200)} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">{busy === "wave" ? "Saving…" : saved === "wave" ? "Saved to media" : "Save to media (1200px PNG)"}</button>
           </div>
@@ -104,7 +105,7 @@ export function BrandClient({ brand }: { brand: B }) {
           <div className="flex flex-wrap items-center gap-4">
             <div className="font-medium">Icons &amp; stickers</div>
             <label className="flex items-center gap-2 text-sm">Colour <input type="color" value={elFill} onChange={e => setElFill(e.target.value)} /></label>
-            <div className="flex gap-1">{["#262967", "#fbe7e6", "#fcd1bd", "#ffd56a", "#f67c43", "#ffffff"].map(c => <button key={c} onClick={() => setElFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
+            <div className="flex gap-1">{SWATCHES.map(c => <button key={c} onClick={() => setElFill(c)} className="h-6 w-6 rounded border border-black/10" style={{ background: c }} />)}</div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-4 md:grid-cols-6">
             {brand.elements.map(e => {
