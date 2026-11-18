@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db";
 import { translate } from "@/lib/rules";
-import { renderTemplate, instrument, couponPools, type RenderCtx } from "@/lib/render";
+import { renderTemplate, instrument, couponPools, type RenderCtx, withPreheader } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
 import { campaignSig, queueSig } from "@/lib/auth";
 import { securityAlert } from "@/lib/alerts";
@@ -47,7 +47,7 @@ export async function queueCampaign(campaignId: number, batch = 500, opts: { sof
     const coupons: Record<string, string> = {};
     for (const p of pools) { try { coupons[p] = await getCoupon(p, r.id); } catch { /* skip */ } }
     const ctx: RenderCtx = { first_name: r.first_name, email: r.email, token, unsubscribe_url: `${APP()}/u/${r.unsubscribe_token}`, coupons };
-    const subject = renderTemplate(c.subject ?? "", ctx), html = instrument(renderTemplate(c.html, ctx), token);
+    const subject = renderTemplate(c.subject ?? "", ctx), html = instrument(withPreheader(renderTemplate(c.html, ctx), renderTemplate(c.preview_text ?? "", ctx)), token);
     values.push({ contact_id: r.id, campaign_id: campaignId, template_id: c.template_id, token, subject, preview_text: c.preview_text, html, sig: queueSig({ token, contact_id: r.id, subject, html }), from_name: c.from_name ?? "Bluebells Cakery", from_email: c.from_email ?? process.env.SES_FROM_EMAIL ?? null, send_after: c.scheduled_at ?? new Date().toISOString() });
   }
   if (values.length) await sql`insert into send_queue (contact_id, campaign_id, template_id, token, subject, preview_text, html, sig, from_name, from_email, send_after, status)

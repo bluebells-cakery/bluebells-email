@@ -59,6 +59,19 @@ export function renderTemplate(html: string, ctx: RenderCtx): string {
 /** Wrap http(s) links with click tracking and append an open pixel. */
 export function couponPools(html: string): string[] { return [...new Set([...html.matchAll(/\{%\s*coupon_code\s*['"]([^'"]+)['"]\s*%\}/g)].map(m => m[1]))]; }
 
+/** Puts the campaign's preview text into the email as the hidden preheader (the grey line after the subject in the inbox).
+ *  Replaces whatever preheader the design was saved with; no-op when text is empty. */
+export function withPreheader(html: string, text: string | null | undefined): string {
+  const t = (text ?? "").trim(); if (!t) return html;
+  const safe = t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Padding stops mail apps topping the preview up with the first words of the email body.
+  const pad = "&#847;&zwnj;&nbsp;".repeat(60);
+  const cell = /(<td style="display:none !important;visibility:hidden;mso-hide:all;[^"]*">)[\s\S]*?(<\/td>)/;
+  if (cell.test(html)) return html.replace(cell, (_m, a, b) => `${a}${safe}${pad}${b}`);
+  const div = `<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${safe}${pad}</div>`;
+  return /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m => m + div) : div + html;
+}
+
 export function instrument(html: string, token: string): string {
   const base = APP();
   // Only real links (<a>) are click-tracked — not <link> stylesheets such as Google Fonts, which mail apps fetch on open.

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db";
 import { hiddenHandles, parentsOnly } from "@/lib/hidden-products";
 import { translate } from "@/lib/rules";
-import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx } from "@/lib/render";
+import { renderTemplate, instrument, textVersion, couponPools, type RenderCtx, withPreheader } from "@/lib/render";
 import { getCoupon } from "@/lib/coupons";
 import { sendEmail, defaultProvider } from "@/lib/ses";
 import { queueSig } from "@/lib/auth";
@@ -60,7 +60,7 @@ async function sendStep(run: { id: number; flow_id: number; contact_id: number; 
   const coupons: Record<string, string> = {};
   for (const pool of couponPools(t.html)) { try { coupons[pool] = await getCoupon(pool, c.id); } catch (e) { console.error("coupon", pool, (e as Error).message); } }
   ctx.coupons = coupons;
-  const html = instrument(renderTemplate(t.html, ctx), token);
+  const html = instrument(withPreheader(renderTemplate(t.html, ctx), renderTemplate(email.previewText ?? t.preview_text ?? "", ctx)), token);
   const subject = renderTemplate(email.subject ?? t.subject ?? "", ctx);
   await sql`insert into send_queue (contact_id, flow_id, flow_run_id, template_id, step_id, token, subject, preview_text, html, sig, from_name, from_email, status)
     values (${c.id}, ${run.flow_id}, ${run.id}, ${tplId}, ${step.id}, ${token}, ${subject}, ${email.previewText ?? t.preview_text ?? null}, ${html}, ${queueSig({ token, contact_id: c.id, subject, html })}, ${t.from_name ?? "Bluebells Cakery"}, ${process.env.SES_FROM_EMAIL ?? t.from_email}, 'queued')`;
