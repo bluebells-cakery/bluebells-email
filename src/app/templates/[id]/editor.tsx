@@ -69,6 +69,23 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
       then?.();
     });
   };
+  // Send test: saves first, then emails the saved version to the ticked addresses.
+  const [testOpen, setTestOpen] = useState(false); const [testSaved, setTestSaved] = useState<string[]>([]); const [testPick, setTestPick] = useState<string[]>([]);
+  const [testExtra, setTestExtra] = useState(""); const [testMsg, setTestMsg] = useState(""); const [testBusy, setTestBusy] = useState(false);
+  const openTest = async () => {
+    setTestOpen(o => !o); setTestMsg("");
+    if (!testSaved.length) { const j = await (await fetch(`/api/templates/${id}/test`)).json(); setTestSaved(j.saved ?? []); setTestPick(j.saved ?? []); }
+  };
+  const sendTest = () => {
+    setTestBusy(true); setTestMsg("Saving…");
+    save(async () => {
+      setTestMsg("Sending…");
+      const to = [...testPick, ...testExtra.split(/[,\s]+/).filter(Boolean)];
+      const res = await fetch(`/api/templates/${id}/test`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to, campaignId }) });
+      const j = await res.json(); setTestBusy(false);
+      setTestMsg(!res.ok ? j.error ?? "Failed" : j.ok ? `✓ Test sent to ${j.results.map((r: { to: string }) => r.to).join(", ")}` : "Some failed: " + j.results.filter((r: { error?: string }) => r.error).map((r: { to: string; error?: string }) => `${r.to} (${r.error})`).join(", "));
+    });
+  };
   const back = () => save(() => { window.location.href = campaignId ? `/campaigns/${campaignId}` : "/templates"; });
 
   // Replace Unlayer's image picker with our media library. Registered on the global unlayer object as soon as embed.js
@@ -103,6 +120,17 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         <button onClick={openCrop} className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:border-black/40">Crop image</button>
         <button onClick={() => { setCanva(c => !c); setAssist(false); setBlocks(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>
         <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
+        <div className="relative">
+          <button onClick={openTest} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${testOpen ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Send test</button>
+          {testOpen && <div className="absolute right-0 top-full z-40 mt-2 w-80 rounded-lg border border-black/10 bg-white p-4 text-sm shadow-xl">
+            <div className="font-medium">Send a test</div>
+            <div className="mt-2 space-y-1">{testSaved.map(a => <label key={a} className="flex items-center gap-2"><input type="checkbox" checked={testPick.includes(a)} onChange={e => setTestPick(p => e.target.checked ? [...p, a] : p.filter(x => x !== a))} /> {a}</label>)}</div>
+            <input value={testExtra} onChange={e => setTestExtra(e.target.value)} placeholder="Other addresses (comma separated)" className="mt-2 w-full rounded border border-black/10 px-2 py-1.5 text-xs" />
+            <button disabled={testBusy} onClick={sendTest} className="mt-3 w-full rounded-md bg-brand px-3 py-1.5 font-medium text-white disabled:opacity-50">{testBusy ? "Working…" : "Save and send test"}</button>
+            {testMsg && <div className={`mt-2 text-xs ${testMsg.startsWith("✓") ? "text-green-700" : "text-black/60"}`}>{testMsg}</div>}
+            <div className="mt-2 text-[11px] text-black/40">Subject gets a [TEST] prefix. Nothing goes to customers.</div>
+          </div>}
+        </div>
         <button onClick={() => save()} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">Save</button>
       </div>
       <div className="flex min-h-0 flex-1">
