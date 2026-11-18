@@ -23,7 +23,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [picker, setPicker] = useState<((url: string) => void) | null>(null);
-  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]);
+  const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [media, setMedia] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]);
   const [assist, setAssist] = useState(false);
 
   const insert = (rows: Record<string, unknown>[]) => {
@@ -98,10 +98,11 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
           : <input value={name} onChange={e => setName(e.target.value)} title="Template name" className="rounded border border-black/10 px-2 py-1 text-sm font-medium" />}
         <span className="text-xs text-black/50">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}</span>
         <div className="flex-1" />
-        <button onClick={() => { setAssist(a => !a); setBlocks(false); setCanva(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
+        <button onClick={() => { setAssist(a => !a); setBlocks(false); setCanva(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
+        <button onClick={() => { setMedia(m => !m); setCanva(false); setAssist(false); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${media ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Media</button>
         <button onClick={openCrop} className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:border-black/40">Crop image</button>
-        <button onClick={() => { setCanva(c => !c); setAssist(false); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>
-        <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
+        <button onClick={() => { setCanva(c => !c); setAssist(false); setBlocks(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${canva ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Canva</button>
+        <button onClick={() => { setBlocks(b => !b); setAssist(false); setCanva(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${blocks ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Bluebells blocks</button>
         <button onClick={() => save()} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">Save</button>
       </div>
       <div className="flex min-h-0 flex-1">
@@ -130,6 +131,10 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
           }} />
       </div>
       {blocks && <BlocksPanel onInsert={insert} onClose={() => setBlocks(false)} />}
+      {media && <div className="flex h-full w-[460px] flex-col border-l border-black/10 bg-white">
+        <div className="flex items-center gap-2 border-b border-black/10 px-3 py-2"><span className="text-sm font-medium">Media library</span><span className="text-xs text-black/50">click an image to add it to the email</span><div className="flex-1" /><button onClick={() => setMedia(false)} className="text-xs text-black/50 hover:text-black">Close</button></div>
+        <div className="min-h-0 flex-1 overflow-hidden"><MediaLibrary compact onSelect={(m: MediaItem) => { const w = m.width ?? 600, h = m.height ?? 600; insert([imageRow(m.url, w, h, w >= 700 ? { maxWidth: 600, padding: "0px" } : { maxWidth: Math.min(w, 300), padding: "20px" })]); }} /></div>
+      </div>}
       {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => setCropQ(q => [...q, ...items])} />}
       {pics && !cropPic && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPics(null)}>
         <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
