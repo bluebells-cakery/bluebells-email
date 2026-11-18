@@ -26,9 +26,10 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   const [blocks, setBlocks] = useState(false); const [canva, setCanva] = useState(false); const [media, setMedia] = useState(false); const [cropQ, setCropQ] = useState<CanvaItem[]>([]);
   const [assist, setAssist] = useState(false);
 
+  const saveRef = useRef<(then?: () => void) => void>(() => {});
   const insert = (rows: Record<string, unknown>[]) => {
     const u = ref.current?.editor; if (!u) return;
-    u.saveDesign((d: Record<string, unknown>) => u.loadDesign(insertRows(d, rows) as never));
+    u.saveDesign((d: Record<string, unknown>) => { u.loadDesign(insertRows(d, rows) as never); setTimeout(() => saveRef.current(), 1500); });
   };
 
   // Crop any image already in the email: list them, pick one, trim, swap it in place.
@@ -52,7 +53,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
       const x = d?.body?.rows?.[p.path[0]]?.columns?.[p.path[1]]?.contents?.[p.path[2]]; if (!x) return;
       if (p.kind === "image") x.values.src = { ...x.values.src, url: m.url, width: m.width, height: m.height };
       else x.values.html = String(x.values.html).replace(/(<img[^>]+src=")[^"]+(")/i, `$1${m.url}$2`);
-      u.loadDesign(d as never);
+      u.loadDesign(d as never); setTimeout(() => saveRef.current(), 1500);
     });
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -102,8 +103,12 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const onLoad: EmailEditorProps["onLoad"] = (u) => { u.registerCallback("selectImage", selectImage); };
+  // Auto-save: 3 seconds after the last change in the editor.
+  saveRef.current = save;
+  const autoT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onReady: EmailEditorProps["onReady"] = (u) => {
     if (design && Object.keys(design).length) u.loadDesign(design as never);
+    u.addEventListener("design:updated", () => { if (autoT.current) clearTimeout(autoT.current); autoT.current = setTimeout(() => saveRef.current(), 3000); });
   };
 
   return (
@@ -113,7 +118,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         {campaignId
           ? <span className="text-sm font-medium">Editing email for: {name.replace(/ – email$/, "")}</span>
           : <input value={name} onChange={e => setName(e.target.value)} title="Template name" className="rounded border border-black/10 px-2 py-1 text-sm font-medium" />}
-        <span className="text-xs text-black/50">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}</span>
+        <span className="text-xs text-black/50">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "Saves automatically"}</span>
         <div className="flex-1" />
         <button onClick={() => { setAssist(a => !a); setBlocks(false); setCanva(false); setMedia(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${assist ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Ask Claude</button>
         <button onClick={() => { setMedia(m => !m); setCanva(false); setAssist(false); setBlocks(false); }} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${media ? "border-brand text-brand" : "border-black/15 hover:border-black/40"}`}>Media</button>
