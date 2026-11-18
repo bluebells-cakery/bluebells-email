@@ -57,9 +57,10 @@ export const productRow = (products: Product[], opts: { bg?: string; cardBg?: st
 };
 
 /** Centered image (badge, sticker, logo) with optional link. */
-export const imageRow = (url: string, width: number, height: number, opts: { href?: string; maxWidth?: number; bg?: string; padding?: string } = {}) => {
+export const imageRow = (url: string, width: number, height: number, opts: { href?: string; maxWidth?: number | "100%"; bg?: string; padding?: string } = {}) => {
   const img = image(url, width, height, { href: opts.href, padding: opts.padding ?? "20px" });
-  if (opts.maxWidth) (img.values.src as Record<string, unknown>).maxWidth = `${opts.maxWidth}px`;
+  // "100%" = fills the email width and shrinks on phones. A px number is a fixed size, so only use it for small images (badges).
+  if (opts.maxWidth) (img.values.src as Record<string, unknown>).maxWidth = opts.maxWidth === "100%" ? "100%" : `${opts.maxWidth}px`;
   return rowBase([col([img])], { backgroundColor: opts.bg ?? "" });
 };
 

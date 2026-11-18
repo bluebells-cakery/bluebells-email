@@ -107,7 +107,18 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
   saveRef.current = save;
   const autoT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onReady: EmailEditorProps["onReady"] = (u) => {
-    if (design && Object.keys(design).length) u.loadDesign(design as never);
+    if (design && Object.keys(design).length) {
+      // Wide images fixed at e.g. 600px can't shrink on phones — switch them to fill the email width instead, then re-save.
+      let fixed = 0;
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      ((design as any).body?.rows ?? []).forEach((r: any) => (r.columns ?? []).forEach((c: any) => (c.contents ?? []).forEach((x: any) => {
+        const mw = x.type === "image" ? String(x.values?.src?.maxWidth ?? "") : "";
+        if (/^\d+px$/.test(mw) && parseInt(mw) >= 480 && (r.columns ?? []).length === 1) { x.values.src.maxWidth = "100%"; fixed++; }
+      })));
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      u.loadDesign(design as never);
+      if (fixed) setTimeout(() => saveRef.current(), 2500);
+    }
     u.addEventListener("design:updated", () => { if (autoT.current) clearTimeout(autoT.current); autoT.current = setTimeout(() => saveRef.current(), 3000); });
   };
 
@@ -166,7 +177,7 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
       {blocks && <BlocksPanel onInsert={insert} onClose={() => setBlocks(false)} />}
       {media && <div className="flex h-full w-[460px] flex-col border-l border-black/10 bg-white">
         <div className="flex items-center gap-2 border-b border-black/10 px-3 py-2"><span className="text-sm font-medium">Media library</span><span className="text-xs text-black/50">click an image to add it to the email</span><div className="flex-1" /><button onClick={() => setMedia(false)} className="text-xs text-black/50 hover:text-black">Close</button></div>
-        <div className="min-h-0 flex-1 overflow-hidden"><MediaLibrary compact onSelect={(m: MediaItem) => { const w = m.width ?? 600, h = m.height ?? 600; insert([imageRow(m.url, w, h, w >= 700 ? { maxWidth: 600, padding: "0px" } : { maxWidth: Math.min(w, 300), padding: "20px" })]); }} /></div>
+        <div className="min-h-0 flex-1 overflow-hidden"><MediaLibrary compact onSelect={(m: MediaItem) => { const w = m.width ?? 600, h = m.height ?? 600; insert([imageRow(m.url, w, h, w >= 700 ? { maxWidth: "100%", padding: "0px" } : { maxWidth: Math.min(w, 300), padding: "20px" })]); }} /></div>
       </div>}
       {canva && <CanvaPanel insertLabel="Add to email" onClose={() => setCanva(false)} onImported={items => setCropQ(q => [...q, ...items])} />}
       {pics && !cropPic && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPics(null)}>
@@ -185,8 +196,8 @@ export function TemplateEditor({ id, name: initialName, design, extraFonts = [] 
         onDone={m => { applyCrop(cropPic, m); setCropPic(null); setPics(null); }}
         onCancel={() => { setCropPic(null); setPics(null); }} />}
       {cropQ[0] && <TrimCropper key={cropQ[0].url} url={cropQ[0].url}
-        onDone={m => { insert([imageRow(m.url, m.width, m.height, { maxWidth: 600, padding: "0px" })]); setCropQ(q => q.slice(1)); }}
-        onWhole={() => { const m = cropQ[0]; insert([imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: 600, padding: "0px" })]); setCropQ(q => q.slice(1)); }}
+        onDone={m => { insert([imageRow(m.url, m.width, m.height, { maxWidth: "100%", padding: "0px" })]); setCropQ(q => q.slice(1)); }}
+        onWhole={() => { const m = cropQ[0]; insert([imageRow(m.url, m.width ?? 1200, m.height ?? 1200, { maxWidth: "100%", padding: "0px" })]); setCropQ(q => q.slice(1)); }}
         onCancel={() => setCropQ(q => q.slice(1))} />}
       {assist && <AssistantPanel onInsert={insert} onClose={() => setAssist(false)} />}
       </div>
