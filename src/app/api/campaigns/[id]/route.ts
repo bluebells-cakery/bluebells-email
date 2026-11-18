@@ -33,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await sql`update campaigns set template_id = ${b.template_id}, html = ${t?.html ?? null}, design = ${t?.design ? JSON.stringify(t.design) : null}::jsonb where id = ${id}`;
   }
   if (b.provider !== undefined) await sql`update campaigns set provider = ${["resend", "ses"].includes(b.provider) ? b.provider : null} where id = ${id}`;
+  if (typeof b.name === "string" && b.name.trim()) await sql`update templates t set name = ${b.name.trim() + " – email"} from campaigns c where c.id = ${id} and t.id = c.template_id and t.name like '% – email' or (c.id = ${id} and t.id = c.template_id and t.name ~ '^Campaign [0-9]+ email$')`;
   await sql`update campaigns set
     name = coalesce(${b.name ?? null}, name), subject = coalesce(${b.subject ?? null}, subject), preview_text = coalesce(${b.preview_text ?? null}, preview_text),
     from_name = coalesce(${b.from_name ?? null}, from_name), smart_sending = coalesce(${typeof b.smart_sending === 'boolean' ? b.smart_sending : null}, smart_sending), audience = coalesce(${b.audience ? JSON.stringify(b.audience) : null}::jsonb, audience), updated_at = now() where id = ${id}`;
