@@ -6,8 +6,10 @@ const key = () => process.env.RESEND_API_KEY!;
 export async function resendSend(a: SendArgs): Promise<string> {
   const fromEmail = a.fromEmail ?? process.env.SES_FROM_EMAIL!;
   const fromName = a.fromName ?? "Bluebells Cakery";
+  // Tell mail systems this is a bulk send so they don't fire out-of-office / auto replies back at us (Outlook/Exchange honour X-Auto-Response-Suppress, Gmail and others honour Precedence).
+  // Only on customer sends (the ones with an unsubscribe link), not login codes or alerts.
   const headers: Record<string, string> = {};
-  if (a.unsubscribeUrl) { headers["List-Unsubscribe"] = `<${a.unsubscribeUrl}>`; headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"; }
+  if (a.unsubscribeUrl) { headers["List-Unsubscribe"] = `<${a.unsubscribeUrl}>`; headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"; headers["X-Auto-Response-Suppress"] = "OOF, AutoReply"; headers["Precedence"] = "bulk"; }
   const body = {
     from: `${fromName} <${fromEmail}>`,
     to: [a.to],

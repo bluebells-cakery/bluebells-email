@@ -55,6 +55,9 @@ async function sesSend(a: SendArgs) {
     ? [
         { Name: "List-Unsubscribe", Value: `<${a.unsubscribeUrl}>` },
         { Name: "List-Unsubscribe-Post", Value: "List-Unsubscribe=One-Click" },
+        // Stops out-of-office / auto replies being sent back (Outlook/Exchange honour the first, Gmail and others the second).
+        { Name: "X-Auto-Response-Suppress", Value: "OOF, AutoReply" },
+        { Name: "Precedence", Value: "bulk" },
       ]
     : [];
   const res = await ses.send(
