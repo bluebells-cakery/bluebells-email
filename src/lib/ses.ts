@@ -66,7 +66,8 @@ async function sesSend(a: SendArgs) {
       Destination: { ToAddresses: [a.to] },
       ReplyToAddresses: a.replyTo ? [a.replyTo] : undefined,
       ConfigurationSetName: process.env.SES_CONFIGURATION_SET,
-      EmailTags: a.tags ? Object.entries(a.tags).map(([Name, Value]) => ({ Name, Value })) : undefined,
+      // SES rejects the whole send if any tag value is empty or has odd characters — drop empties and clean the rest.
+      EmailTags: a.tags ? Object.entries(a.tags).filter(([, v]) => v).map(([Name, Value]) => ({ Name, Value: String(Value).replace(/[^a-zA-Z0-9_-]/g, "_") })) : undefined,
       Content: {
         Simple: {
           Subject: { Data: a.subject, Charset: "UTF-8" },
