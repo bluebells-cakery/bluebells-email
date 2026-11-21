@@ -139,7 +139,12 @@ export async function processQueue(limit = 50) {
   // Hard daily cap (EDM_DAILY_SEND_CAP in Vercel, default 6,000 per rolling 24h). Not stored in the database, so database access alone can't raise it.
   const cap = Number(process.env.EDM_DAILY_SEND_CAP ?? 6000);
   const room = Math.max(0, cap - h.sent);
-  if (room === 0) { await securityAlert("Daily send cap reached", `${h.sent.toLocaleString()} emails went out in the last 24 hours, which is the cap (${cap.toLocaleString()}). Sending is paused until that drops. If you didn't send this much, change your passwords.`); return { mode, sent: 0, skipped: 0, capped: true }; }
+  if (room === 0) {
+    // Expected while a campaign the owner approved is still working through its list — only alert when nothing explains it.
+    const [busy] = await sql`select 1 from campaigns where status = 'sending' and approval_sig is not null limit 1`;
+    if (!busy) await securityAlert("Daily send cap reached", `${h.sent.toLocaleString()} emails went out in the last 24 hours, which is the cap (${cap.toLocaleString()}). Sending is paused until that drops. If you didn't send this much, change your passwords.`);
+    return { mode, sent: 0, skipped: 0, capped: true };
+  }
   limit = Math.min(limit, room);
   // One-off: sign rows queued before signatures existed (window closes at LEGACY_SIGN_UNTIL).
   if (Date.now() < LEGACY_SIGN_UNTIL) for (const r of await sql`select id, token, contact_id, subject, html from send_queue where status = 'queued' and sig is null`) await sql`update send_queue set sig = ${queueSig(r as never)} where id = ${r.id}`;
