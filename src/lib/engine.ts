@@ -149,7 +149,7 @@ export async function processQueue(limit = 50) {
   // One-off: sign rows queued before signatures existed (window closes at LEGACY_SIGN_UNTIL).
   if (Date.now() < LEGACY_SIGN_UNTIL) for (const r of await sql`select id, token, contact_id, subject, html from send_queue where status = 'queued' and sig is null`) await sql`update send_queue set sig = ${queueSig(r as never)} where id = ${r.id}`;
   const rows = await sql`select q.id, q.contact_id, q.subject, q.html, q.token, q.sig, q.from_name, q.from_email, q.flow_id, q.campaign_id, c.email, c.status, c.unsubscribe_token, ca.provider
-    from send_queue q join contacts c on c.id = q.contact_id left join campaigns ca on ca.id = q.campaign_id where q.status = 'queued' and q.send_after <= now() ${paused ? sql`and q.campaign_id is null` : sql``} order by q.id limit ${limit}`;
+    from send_queue q join contacts c on c.id = q.contact_id left join campaigns ca on ca.id = q.campaign_id where q.status = 'queued' and q.send_after <= now() ${paused ? sql`and q.campaign_id is null` : sql``} order by (q.campaign_id is not null), q.id limit ${limit}`; // automatic (flow) emails always go ahead of campaign emails
   let sent = 0, skipped = 0, blocked = 0;
   const defProv = await defaultProvider();
   const work = async (r: (typeof rows)[number]) => {
